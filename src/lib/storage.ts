@@ -94,6 +94,14 @@ export async function loadFamilyBySlug(slug: string): Promise<LoadedTree> {
 export async function createNewFamily(
   treeName = 'Mitt släktträd',
 ): Promise<LoadedTree> {
+  return createFamilyFromStore(createBlankFamily('Jag'), treeName)
+}
+
+/** Persist an existing in-memory store as a new owned cloud tree. */
+export async function createFamilyFromStore(
+  store: FamilyStore,
+  treeName = 'Mitt släktträd',
+): Promise<LoadedTree> {
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -101,7 +109,6 @@ export async function createNewFamily(
     throw new Error('Du måste vara inloggad för att skapa ett nytt träd')
   }
 
-  const store = createBlankFamily('Jag')
   const slug = newSlug()
   const token = crypto.randomUUID().replaceAll('-', '')
 
@@ -109,7 +116,7 @@ export async function createNewFamily(
     .from('family_trees')
     .insert({
       slug,
-      name: treeName,
+      name: treeName.trim() || 'Mitt släktträd',
       root_id: store.rootId,
       profiles: store.profiles,
       nodes: store.nodes,

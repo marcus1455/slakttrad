@@ -22,6 +22,7 @@ export function AppRouter() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<NewTreeRedirect />} />
+          <Route path="/gast" element={<TreeApp mode="guest" />} />
           <Route path="/konto" element={<AccountPage />} />
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
           <Route path="/trad/:slug" element={<EditTreePage />} />

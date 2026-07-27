@@ -4,7 +4,6 @@ import { AuthMenu } from './components/AuthMenu'
 import { LoadingScreen } from './components/LoadingScreen'
 import { useAuth } from './lib/auth'
 import { createNewFamily } from './lib/storage'
-import { DEFAULT_TREE_SLUG } from './lib/supabase'
 import './App.css'
 
 /** `/` creates a new empty tree when signed in; otherwise offers login or guest. */
@@ -41,8 +40,8 @@ export function NewTreeRedirect() {
         <p className="app__brand">Släktträd</p>
         <h1>Välkommen</h1>
         <p className="app__hint">
-          Logga in för att skapa och redigera egna träd, eller fortsätt som gäst
-          och titta på Davidsson-trädet.
+          Logga in för att skapa och spara egna träd i molnet, eller fortsätt
+          som gäst med ett tomt träd i den här webbläsaren.
         </p>
         <div className="app__auth-gate-choices">
           <div className="app__auth-gate-choice">
@@ -55,9 +54,11 @@ export function NewTreeRedirect() {
           <div className="app__auth-gate-choice app__auth-gate-choice--guest">
             <p className="app__auth-gate-choice-title">Fortsätt som gäst</p>
             <p className="app__auth-gate-choice-text">
-              Öppna Davidsson-trädet utan konto. Du kan titta, men inte redigera.
+              Börja med ett tomt träd här. Det sparas i den här sessionen tills
+              du anger e-post och sparar det på ett konto. Familjeträd som
+              Davidsson öppnas via delningslänk.
             </p>
-            <Link className="app__tool app__tool--primary" to={`/trad/${DEFAULT_TREE_SLUG}`}>
+            <Link className="app__tool app__tool--primary" to="/gast">
               Fortsätt som gäst
             </Link>
           </div>
@@ -72,7 +73,7 @@ export function NewTreeRedirect() {
       <div className="app app--state">
         <p>{error}</p>
         <p>
-          <Link to={`/trad/${DEFAULT_TREE_SLUG}`}>Öppna Davidsson-trädet</Link>
+          <Link to="/gast">Fortsätt som gäst</Link>
         </p>
       </div>
     )

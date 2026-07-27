@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { AuthMenu } from './components/AuthMenu'
 import { LoadingScreen } from './components/LoadingScreen'
 import { PersonCard } from './components/PersonCard'
@@ -15,6 +16,7 @@ import {
   type QuickAddKind,
 } from './components/QuickAddDialog'
 import { RemoteCursors } from './components/RemoteCursors'
+import { SaveGuestDialog } from './components/SaveGuestDialog'
 import { SearchBar } from './components/SearchBar'
 import { ShareDialog } from './components/ShareDialog'
 import { SpouseEdge } from './components/SpouseEdge'
@@ -33,12 +35,19 @@ import { layoutFullTree } from './lib/fullTreeLayout'
 import { personLifeLabel } from './lib/personLife'
 import { relationToFocus } from './lib/relationship'
 import {
+  createFamilyFromStore,
   loadFamilyByShareToken,
   loadFamilyBySlug,
   rotateShareToken,
   saveFamily,
   shareUrlForToken,
 } from './lib/storage'
+import {
+  clearGuestTree,
+  GUEST_TREE_ID,
+  loadOrCreateGuestTree,
+  saveGuestTree,
+} from './lib/guestTree'
 import { supabase } from './lib/supabase'
 import { avatarUrlForUserInTree, personProfileForUser } from './lib/userDisplay'
 import { nodesForView, type TreeView } from './lib/treeView'
@@ -55,15 +64,17 @@ function firstName(fullName: string | undefined, fallback: string) {
 }
 
 export type TreeAppProps = {
-  mode: 'edit' | 'view'
+  mode: 'edit' | 'view' | 'guest'
   slug?: string
   shareToken?: string
 }
 
 function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
+  const navigate = useNavigate()
   const { user } = useAuth()
+  const isGuestMode = mode === 'guest'
   const isViewMode = mode === 'view'
-  const [mayEdit, setMayEdit] = useState(mode === 'edit')
+  const [mayEdit, setMayEdit] = useState(mode === 'edit' || mode === 'guest')
   const readOnly = isViewMode || !mayEdit
   const [store, setStore] = useState<FamilyStore | null>(null)
   const [meta, setMeta] = useState<TreeMeta | null>(null)
@@ -81,11 +92,13 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
   } | null>(null)
   const [listOpen, setListOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
+  const [saveGuestOpen, setSaveGuestOpen] = useState(false)
   const [treeView, setTreeView] = useState<TreeView>({ type: 'all' })
   const [history, setHistory] = useState<StoreHistory>(emptyHistory)
   const skipNextSave = useRef(true)
   const didInitialFit = useRef(false)
   const savedFlashTimer = useRef<number | null>(null)
+  const claimingGuest = useRef(false)
   const storeRef = useRef(store)
   const historyRef = useRef(history)
   storeRef.current = store
@@ -95,11 +108,11 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
   const focusName = firstName(store?.profiles[focusId]?.name, 'centrum')
 
   const { peers, remoteCursors, publishCursor } = useTreePresence({
-    treeId: meta?.id,
+    treeId: isGuestMode ? null : meta?.id,
     user,
     ownerId: meta?.ownerId,
     mayEdit,
-    isViewMode,
+    isViewMode: isViewMode || isGuestMode,
     profiles: store?.profiles,
   })
 
@@ -157,6 +170,29 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
     setQuickAdd(null)
     setTreeView({ type: 'all' })
 
+    if (isGuestMode) {
+      const guest = loadOrCreateGuestTree()
+      if (!cancelled) {
+        skipNextSave.current = true
+        setStore(guest.store)
+        setMeta({
+          id: GUEST_TREE_ID,
+          slug: 'gast',
+          name: guest.name,
+          shareToken: '',
+          ownerId: null,
+        })
+        setSelectedId(guest.store.rootId)
+        setMayEdit(true)
+        setStatus('ready')
+        setError(null)
+        document.title = `Släktträd · ${guest.name}`
+      }
+      return () => {
+        cancelled = true
+      }
+    }
+
     ;(async () => {
       try {
         const loaded = shareToken
@@ -180,9 +216,13 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
     return () => {
       cancelled = true
     }
-  }, [slug, shareToken])
+  }, [slug, shareToken, isGuestMode])
 
   useEffect(() => {
+    if (isGuestMode) {
+      setMayEdit(true)
+      return
+    }
     if (isViewMode) {
       setMayEdit(false)
       return
@@ -207,7 +247,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
     return () => {
       cancelled = true
     }
-  }, [meta?.id, meta?.ownerId, user?.id, isViewMode])
+  }, [meta?.id, meta?.ownerId, user?.id, isViewMode, isGuestMode])
 
   useEffect(() => {
     if (!store || !meta || readOnly) return
@@ -221,7 +261,11 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
       setStatus('saving')
       setJustSaved(false)
       try {
-        await saveFamily(meta.slug, store, meta.name)
+        if (isGuestMode) {
+          saveGuestTree(store, meta.name)
+        } else {
+          await saveFamily(meta.slug, store, meta.name)
+        }
         if (!cancelled) {
           setStatus('ready')
           setJustSaved(true)
@@ -240,7 +284,38 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [store, meta, readOnly])
+  }, [store, meta, readOnly, isGuestMode])
+
+  const promoteGuestTree = useCallback(async () => {
+    const current = storeRef.current
+    const currentMeta = meta
+    if (!isGuestMode || !user || !current || !currentMeta || claimingGuest.current) {
+      return
+    }
+    claimingGuest.current = true
+    setStatus('saving')
+    setError(null)
+    try {
+      saveGuestTree(current, currentMeta.name)
+      const loaded = await createFamilyFromStore(current, currentMeta.name)
+      clearGuestTree()
+      setSaveGuestOpen(false)
+      navigate(`/trad/${loaded.meta.slug}`, { replace: true })
+    } catch (err) {
+      setStatus('error')
+      setError(err instanceof Error ? err.message : 'Kunde inte spara trädet')
+      // Allow a manual retry from the save dialog.
+      window.setTimeout(() => {
+        claimingGuest.current = false
+      }, 800)
+    }
+  }, [isGuestMode, user, meta, navigate])
+
+  // If the guest signs in (dialog, header menu, or magic-link return), claim the tree.
+  useEffect(() => {
+    if (!isGuestMode || !user || !store || !meta) return
+    void promoteGuestTree()
+  }, [isGuestMode, user, store, meta, promoteGuestTree])
 
   useEffect(() => {
     return () => {
@@ -362,6 +437,10 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
         target?.isContentEditable
 
       if (e.key === 'Escape') {
+        if (saveGuestOpen) {
+          setSaveGuestOpen(false)
+          return
+        }
         if (shareOpen) {
           setShareOpen(false)
           return
@@ -397,7 +476,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [quickAdd, listOpen, shareOpen, selectedId, readOnly, onUndo, onRedo])
+  }, [quickAdd, listOpen, shareOpen, saveGuestOpen, selectedId, readOnly, onUndo, onRedo])
 
   const selectedRelation = useMemo(() => {
     if (!store || !selectedId || !focusId) return null
@@ -406,6 +485,12 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
 
   const statusHint = (() => {
     if (isViewMode) return 'Endast visning'
+    if (isGuestMode) {
+      if (status === 'saving') return 'Sparar…'
+      if (justSaved) return 'Sparat lokalt'
+      if (status === 'error') return error ?? 'Kunde inte spara'
+      return 'Sparat i sessionen — ange e-post för att behålla trädet'
+    }
     if (readOnly) return 'Logga in för att redigera'
     if (status === 'saving') return 'Sparar…'
     if (status === 'error') return error ?? 'Kunde inte spara'
@@ -441,7 +526,10 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
     <div className="app">
       <header className="app__header">
         <div>
-          <p className="app__brand">Släktträd{readOnly ? ' · Delad länk' : ''}</p>
+          <p className="app__brand">
+            Släktträd
+            {isViewMode ? ' · Delad länk' : isGuestMode ? ' · Gäst' : ''}
+          </p>
           <TreeTitle
             name={meta.name}
             readOnly={readOnly}
@@ -498,6 +586,16 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
                 </svg>
               </button>
             </>
+          ) : null}
+          {isGuestMode ? (
+            <button
+              type="button"
+              className="app__tool app__tool--primary"
+              onClick={() => setSaveGuestOpen(true)}
+              title="Spara trädet med e-post"
+            >
+              Spara…
+            </button>
           ) : null}
           <button
             type="button"
@@ -701,6 +799,16 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
               revealCreatedPerson(id)
               // Defer center until layout includes the new node
               window.setTimeout(() => onCenter(id), 0)
+            }}
+          />
+        ) : null}
+
+        {isGuestMode && saveGuestOpen ? (
+          <SaveGuestDialog
+            treeName={meta.name}
+            onClose={() => setSaveGuestOpen(false)}
+            onSignedIn={() => {
+              void promoteGuestTree()
             }}
           />
         ) : null}
