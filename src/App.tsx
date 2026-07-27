@@ -9,15 +9,18 @@ import {
   type CenterRequest,
   type FitRequest,
 } from './components/PinchZoomPan'
+import { PresenceAvatars } from './components/PresenceAvatars'
 import {
   QuickAddDialog,
   type QuickAddKind,
 } from './components/QuickAddDialog'
+import { RemoteCursors } from './components/RemoteCursors'
 import { SearchBar } from './components/SearchBar'
 import { ShareDialog } from './components/ShareDialog'
 import { SpouseEdge } from './components/SpouseEdge'
 import { TreeTitle } from './components/TreeTitle'
 import { TreeViewMenu } from './components/TreeViewMenu'
+import { useTreePresence } from './hooks/useTreePresence'
 import { useAuth } from './lib/auth'
 import {
   emptyHistory,
@@ -90,6 +93,15 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
 
   const focusId = store?.rootId ?? ''
   const focusName = firstName(store?.profiles[focusId]?.name, 'centrum')
+
+  const { peers, remoteCursors, publishCursor } = useTreePresence({
+    treeId: meta?.id,
+    user,
+    ownerId: meta?.ownerId,
+    mayEdit,
+    isViewMode,
+    profiles: store?.profiles,
+  })
 
   // Keep auth avatar in sync with the linked person in this tree (header + /konto).
   useEffect(() => {
@@ -540,6 +552,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
               {statusHint}
             </p>
           ) : null}
+          <PresenceAvatars peers={peers} />
           <AuthMenu
             avatarUrl={user ? avatarUrlForUserInTree(user, store.profiles) : null}
           />
@@ -550,6 +563,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
         <PinchZoomPan
           centerRequest={centerRequest}
           fitRequest={fitRequest}
+          onPointerWorldMove={publishCursor}
           onBackgroundClick={() => {
             if (quickAdd || shareOpen || listOpen) return
             setSelectedId(null)
@@ -560,6 +574,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
               className="family-tree"
               style={{ width: treeLayout.width, height: treeLayout.height }}
             >
+              <RemoteCursors cursors={remoteCursors} />
               {treeLayout.connectors.map((line, index) => {
                 if (line.kind === 'spouse' && line.spouseIds && !readOnly) {
                   const [aId, bId] = line.spouseIds

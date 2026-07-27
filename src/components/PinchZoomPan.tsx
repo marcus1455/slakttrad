@@ -18,6 +18,8 @@ type Props = {
   centerRequest?: CenterRequest | null
   fitRequest?: FitRequest | null
   onBackgroundClick?: () => void
+  /** Pointer position in tree/world coordinates (null when pointer leaves). */
+  onPointerWorldMove?: (world: { x: number; y: number } | null) => void
 }
 
 const MIN_SCALE = 0.25
@@ -32,6 +34,7 @@ export function PinchZoomPan({
   centerRequest,
   fitRequest,
   onBackgroundClick,
+  onPointerWorldMove,
 }: Props) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const scaleRef = useRef(0.7)
@@ -45,9 +48,23 @@ export function PinchZoomPan({
     oy: number
     moved: boolean
   } | null>(null)
+  const onPointerWorldMoveRef = useRef(onPointerWorldMove)
+  onPointerWorldMoveRef.current = onPointerWorldMove
 
   scaleRef.current = scale
   offsetRef.current = offset
+
+  const toWorld = (clientX: number, clientY: number) => {
+    const el = viewportRef.current
+    if (!el) return null
+    const rect = el.getBoundingClientRect()
+    const vx = clientX - rect.left
+    const vy = clientY - rect.top
+    return {
+      x: (vx - offsetRef.current.x) / scaleRef.current,
+      y: (vy - offsetRef.current.y) / scaleRef.current,
+    }
+  }
 
   const applyScale = (nextScale: number, originX: number, originY: number) => {
     const prev = scaleRef.current
@@ -148,6 +165,9 @@ export function PinchZoomPan({
         ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
       }}
       onPointerMove={(e) => {
+        const world = toWorld(e.clientX, e.clientY)
+        if (world) onPointerWorldMoveRef.current?.(world)
+
         if (!drag.current) return
         const dx = e.clientX - drag.current.x
         const dy = e.clientY - drag.current.y
@@ -160,6 +180,9 @@ export function PinchZoomPan({
         }
         offsetRef.current = nextOffset
         setOffset(nextOffset)
+      }}
+      onPointerLeave={() => {
+        onPointerWorldMoveRef.current?.(null)
       }}
       onPointerUp={() => {
         if (drag.current && !drag.current.moved) {
