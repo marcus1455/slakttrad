@@ -107,7 +107,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
   const focusId = store?.rootId ?? ''
   const focusName = firstName(store?.profiles[focusId]?.name, 'centrum')
 
-  const { peers, remoteCursors, publishCursor } = useTreePresence({
+  const { peers, remoteCursors, publishCursor, self: presenceSelf } = useTreePresence({
     treeId: isGuestMode ? null : meta?.id,
     user,
     ownerId: meta?.ownerId,
@@ -484,12 +484,12 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
   }, [store, selectedId, focusId])
 
   const statusHint = (() => {
-    if (isViewMode) return 'Endast visning'
+    if (isViewMode) return null
     if (isGuestMode) {
       if (status === 'saving') return 'Sparar…'
       if (justSaved) return 'Sparat lokalt'
       if (status === 'error') return error ?? 'Kunde inte spara'
-      return 'Sparat i sessionen — ange e-post för att behålla trädet'
+      return null
     }
     if (readOnly) return 'Logga in för att redigera'
     if (status === 'saving') return 'Sparar…'
@@ -540,6 +540,21 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
           />
         </div>
         <div className="app__header-actions">
+          <div className="app__header-context">
+            <PresenceAvatars peers={peers} self={presenceSelf} />            {statusHint ? (
+              <p
+                className={[
+                  'app__hint',
+                  status === 'saving' || justSaved ? 'app__hint--save' : '',
+                  status === 'error' ? 'app__hint--error' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+              >
+                {statusHint}
+              </p>
+            ) : null}
+          </div>
           <SearchBar store={store} onSelect={onCenter} />
           <button type="button" className="app__tool" onClick={() => setListOpen(true)}>
             Personer
@@ -637,20 +652,6 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
               </svg>
             </button>
           ) : null}
-          {statusHint ? (
-            <p
-              className={[
-                'app__hint',
-                status === 'saving' || justSaved ? 'app__hint--save' : '',
-                status === 'error' ? 'app__hint--error' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-            >
-              {statusHint}
-            </p>
-          ) : null}
-          <PresenceAvatars peers={peers} />
           <AuthMenu
             avatarUrl={user ? avatarUrlForUserInTree(user, store.profiles) : null}
           />
@@ -688,7 +689,6 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
               className="family-tree"
               style={{ width: treeLayout.width, height: treeLayout.height }}
             >
-              <RemoteCursors cursors={remoteCursors} />
               {treeLayout.connectors.map((line, index) => {
                 if (line.kind === 'spouse' && line.spouseIds && !readOnly) {
                   const [aId, bId] = line.spouseIds
@@ -756,6 +756,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
                   />
                 )
               })}
+              <RemoteCursors cursors={remoteCursors} />
             </div>
           ) : null}
         </PinchZoomPan>

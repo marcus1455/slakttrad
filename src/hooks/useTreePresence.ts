@@ -8,16 +8,16 @@ import {
 import type { PersonProfile } from '../types'
 import {
   colorFromKey,
+  cursorsFromPeers,
   getPresenceKey,
   peersFromPresenceState,
   resolvePresenceRole,
   treeChannelName,
-  type CursorPayload,
   type PresencePeer,
-  type RemoteCursor,
 } from '../lib/treePresence'
 
-const CURSOR_THROTTLE_MS = 50
+/** Presence track is heavier than broadcast — keep cursor updates gentle. */
+const CURSOR_TRACK_MS = 80
 
 type Options = {
   treeId: string | null | undefined
@@ -38,10 +38,10 @@ export function useTreePresence({
 }: Options) {
   const selfKey = useMemo(() => getPresenceKey(user?.id), [user?.id])
   const [peers, setPeers] = useState<PresencePeer[]>([])
-  const [cursors, setCursors] = useState<Record<string, RemoteCursor>>({})
   const channelRef = useRef<RealtimeChannel | null>(null)
-  const peersRef = useRef(peers)
-  peersRef.current = peers
+  const subscribedRef = useRef(false)
+  const cursorRef = useRef({ x: 0, y: 0, visible: false })
+  const trackTimer = useRef<number | null>(null)
 
   const selfMeta = useMemo((): PresencePeer => {
     const role = resolvePresenceRole({
@@ -65,10 +65,40 @@ export function useTreePresence({
   const selfMetaRef = useRef(selfMeta)
   selfMetaRef.current = selfMeta
 
+  const pushTrack = useCallback((immediate = false) => {
+    const channel = channelRef.current
+    if (!channel || !subscribedRef.current) return
+
+    const fire = () => {
+      const cursor = cursorRef.current
+      void channel.track({
+        ...selfMetaRef.current,
+        cursorX: cursor.x,
+        cursorY: cursor.y,
+        cursorVisible: cursor.visible,
+      })
+    }
+
+    if (immediate) {
+      if (trackTimer.current) {
+        window.clearTimeout(trackTimer.current)
+        trackTimer.current = null
+      }
+      fire()
+      return
+    }
+
+    if (trackTimer.current != null) return
+    trackTimer.current = window.setTimeout(() => {
+      trackTimer.current = null
+      fire()
+    }, CURSOR_TRACK_MS)
+  }, [])
+
   useEffect(() => {
     if (!treeId) {
       setPeers([])
-      setCursors({})
+      subscribedRef.current = false
       return
     }
 
@@ -78,6 +108,7 @@ export function useTreePresence({
       },
     })
     channelRef.current = channel
+    subscribedRef.current = false
 
     const applyPresence = () => {
       const state = channel.presenceState<PresencePeer>()
@@ -87,145 +118,48 @@ export function useTreePresence({
     channel
       .on('presence', { event: 'sync' }, applyPresence)
       .on('presence', { event: 'join' }, applyPresence)
-      .on('presence', { event: 'leave' }, ({ key }) => {
-        applyPresence()
-        if (key) {
-          setCursors((prev) => {
-            if (!(key in prev)) return prev
-            const next = { ...prev }
-            delete next[key]
-            return next
-          })
-        }
-      })
-      .on('broadcast', { event: 'cursor' }, ({ payload }) => {
-        const data = payload as CursorPayload
-        if (!data?.key || data.key === selfKey) return
-        const peer =
-          peersRef.current.find((p) => p.key === data.key) ??
-          ({
-            key: data.key,
-            name: 'Okänd',
-            color: colorFromKey(data.key),
-            role: 'guest' as const,
-          } satisfies PresencePeer)
-        setCursors((prev) => {
-          if (!data.visible) {
-            if (!(data.key in prev)) return prev
-            const next = { ...prev }
-            delete next[data.key]
-            return next
-          }
-          return {
-            ...prev,
-            [data.key]: {
-              key: data.key,
-              x: data.x,
-              y: data.y,
-              visible: true,
-              name: peer.name,
-              color: peer.color,
-            },
-          }
-        })
-      })
+      .on('presence', { event: 'leave' }, applyPresence)
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          await channel.track(selfMetaRef.current)
+          subscribedRef.current = true
+          pushTrack(true)
         }
       })
 
     return () => {
+      subscribedRef.current = false
       channelRef.current = null
+      if (trackTimer.current) {
+        window.clearTimeout(trackTimer.current)
+        trackTimer.current = null
+      }
       void supabase.removeChannel(channel)
       setPeers([])
-      setCursors({})
     }
-  }, [treeId, selfKey])
+  }, [treeId, selfKey, pushTrack])
 
-  // Refresh presence metadata when name/role/avatar changes without rejoining.
+  // Refresh name/role/avatar without dropping the current cursor.
   useEffect(() => {
-    const channel = channelRef.current
-    if (!channel || !treeId) return
-    void channel.track(selfMeta)
-  }, [selfMeta, treeId])
-
-  // Keep cursor labels in sync when presence names arrive after first move.
-  useEffect(() => {
-    setCursors((prev) => {
-      let changed = false
-      const next = { ...prev }
-      for (const [key, cursor] of Object.entries(next)) {
-        const peer = peers.find((p) => p.key === key)
-        if (!peer) continue
-        if (cursor.name !== peer.name || cursor.color !== peer.color) {
-          next[key] = { ...cursor, name: peer.name, color: peer.color }
-          changed = true
-        }
-      }
-      return changed ? next : prev
-    })
-  }, [peers])
-
-  const lastSent = useRef(0)
-  const pending = useRef<CursorPayload | null>(null)
-  const flushTimer = useRef<number | null>(null)
-
-  const sendCursor = useCallback((payload: CursorPayload) => {
-    const channel = channelRef.current
-    if (!channel) return
-
-    const fire = (data: CursorPayload) => {
-      lastSent.current = Date.now()
-      void channel.send({
-        type: 'broadcast',
-        event: 'cursor',
-        payload: data,
-      })
-    }
-
-    if (!payload.visible) {
-      if (flushTimer.current) {
-        window.clearTimeout(flushTimer.current)
-        flushTimer.current = null
-      }
-      pending.current = null
-      fire(payload)
-      return
-    }
-
-    const elapsed = Date.now() - lastSent.current
-    if (elapsed >= CURSOR_THROTTLE_MS) {
-      fire(payload)
-      return
-    }
-
-    pending.current = payload
-    if (flushTimer.current == null) {
-      flushTimer.current = window.setTimeout(() => {
-        flushTimer.current = null
-        if (pending.current) {
-          fire(pending.current)
-          pending.current = null
-        }
-      }, CURSOR_THROTTLE_MS - elapsed)
-    }
-  }, [])
+    if (!treeId || !subscribedRef.current) return
+    pushTrack(true)
+  }, [selfMeta, treeId, pushTrack])
 
   const publishCursor = useCallback(
     (world: { x: number; y: number } | null) => {
       if (world == null) {
-        sendCursor({ key: selfKey, x: 0, y: 0, visible: false })
+        if (!cursorRef.current.visible) return
+        cursorRef.current = { x: 0, y: 0, visible: false }
+        pushTrack(true)
         return
       }
-      sendCursor({
-        key: selfKey,
+      cursorRef.current = {
         x: world.x,
         y: world.y,
         visible: true,
-      })
+      }
+      pushTrack(false)
     },
-    [selfKey, sendCursor],
+    [pushTrack],
   )
 
   useEffect(() => {
@@ -238,19 +172,16 @@ export function useTreePresence({
     return () => {
       window.removeEventListener('blur', hide)
       document.removeEventListener('visibilitychange', onVisibility)
-      if (flushTimer.current) window.clearTimeout(flushTimer.current)
     }
   }, [publishCursor])
 
-  const remoteCursors = useMemo(
-    () => Object.values(cursors).filter((c) => c.visible),
-    [cursors],
-  )
+  const remoteCursors = useMemo(() => cursorsFromPeers(peers), [peers])
 
   return {
     peers,
     remoteCursors,
     publishCursor,
     selfKey,
+    self: selfMeta,
   }
 }

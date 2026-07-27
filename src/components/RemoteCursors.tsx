@@ -19,11 +19,11 @@ export function RemoteCursors({ cursors }: Props) {
             color: cursor.color,
           }}
         >
-          <svg
+            <svg
             className="remote-cursors__pointer"
             viewBox="0 0 24 24"
-            width="18"
-            height="18"
+            width="22"
+            height="22"
           >
             <path
               fill="currentColor"

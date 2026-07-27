@@ -41,6 +41,13 @@
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
 }
 
+.presence-avatars__face--self {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--teal) 35%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--teal) 18%, transparent);
+  z-index: 1;
+}
+
 .presence-avatars__face--more {
   font-family: var(--font-ui);
   font-size: 0.68rem;

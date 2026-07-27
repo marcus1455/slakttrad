@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   colorFromKey,
+  cursorsFromPeers,
   peersFromPresenceState,
   resolvePresenceRole,
   treeChannelName,
@@ -74,5 +75,36 @@ describe('treePresence helpers', () => {
 
   it('derives a css color from a key', () => {
     expect(colorFromKey('guest:1')).toMatch(/^hsl\(/)
+  })
+
+  it('builds remote cursors from peer presence', () => {
+    const cursors = cursorsFromPeers([
+      {
+        key: 'a',
+        name: 'Anna',
+        color: '#111',
+        role: 'viewer',
+        cursorX: 10,
+        cursorY: 20,
+        cursorVisible: true,
+      },
+      {
+        key: 'b',
+        name: 'Bo',
+        color: '#222',
+        role: 'guest',
+        cursorVisible: false,
+      },
+    ])
+    expect(cursors).toEqual([
+      {
+        key: 'a',
+        x: 10,
+        y: 20,
+        visible: true,
+        name: 'Anna',
+        color: '#111',
+      },
+    ])
   })
 })

@@ -1,4 +1,4 @@
-/** Ephemeral tree presence helpers (Supabase Realtime Presence + Broadcast). */
+/** Ephemeral tree presence helpers (Supabase Realtime Presence). */
 
 export type PresenceRole = 'owner' | 'collaborator' | 'editor' | 'viewer' | 'guest'
 
@@ -9,16 +9,16 @@ export type PresencePeer = {
   role: PresenceRole
   userId?: string
   avatarUrl?: string | null
+  cursorX?: number
+  cursorY?: number
+  cursorVisible?: boolean
 }
 
-export type CursorPayload = {
+export type RemoteCursor = {
   key: string
   x: number
   y: number
   visible: boolean
-}
-
-export type RemoteCursor = CursorPayload & {
   name: string
   color: string
 }
@@ -35,6 +35,15 @@ const ROLE_LABELS: Record<PresenceRole, string> = {
 
 export function presenceRoleLabel(role: PresenceRole): string {
   return ROLE_LABELS[role]
+}
+
+/** Tooltip for a presence face; self in view/guest mode → "Endast visning". */
+export function presencePeerTitle(peer: PresencePeer, isSelf = false): string {
+  if (isSelf && (peer.role === 'guest' || peer.role === 'viewer')) {
+    return `${peer.name} · Endast visning`
+  }
+  if (isSelf) return `${peer.name} (du) · ${presenceRoleLabel(peer.role)}`
+  return `${peer.name} · ${presenceRoleLabel(peer.role)}`
 }
 
 /** Stable presence key: auth user id, or a sessionStorage guest id. */
@@ -79,6 +88,10 @@ export function treeChannelName(treeId: string): string {
   return `tree:${treeId}`
 }
 
+function asNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
 /** Flatten Realtime presence sync state into unique peers (one per key). */
 export function peersFromPresenceState(
   state: Record<string, PresencePeer[]>,
@@ -95,8 +108,29 @@ export function peersFromPresenceState(
         role: meta.role ?? 'guest',
         userId: meta.userId,
         avatarUrl: meta.avatarUrl ?? null,
+        cursorX: asNumber(meta.cursorX),
+        cursorY: asNumber(meta.cursorY),
+        cursorVisible: Boolean(meta.cursorVisible),
       })
     }
   }
   return [...byKey.values()].sort((a, b) => a.name.localeCompare(b.name, 'sv'))
+}
+
+export function cursorsFromPeers(peers: PresencePeer[]): RemoteCursor[] {
+  return peers
+    .filter(
+      (p) =>
+        p.cursorVisible &&
+        p.cursorX != null &&
+        p.cursorY != null,
+    )
+    .map((p) => ({
+      key: p.key,
+      x: p.cursorX!,
+      y: p.cursorY!,
+      visible: true,
+      name: p.name,
+      color: p.color,
+    }))
 }

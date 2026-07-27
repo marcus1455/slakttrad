@@ -160,6 +160,26 @@ export function PinchZoomPan({
     setOffset(nextOffset)
   }, [fitRequest])
 
+  useEffect(() => {
+    const el = viewportRef.current
+    if (!el) return
+
+    const onMove = (event: PointerEvent) => {
+      const world = toWorld(event.clientX, event.clientY)
+      if (world) onPointerWorldMoveRef.current?.(world)
+    }
+    const onLeave = () => {
+      onPointerWorldMoveRef.current?.(null)
+    }
+
+    el.addEventListener('pointermove', onMove)
+    el.addEventListener('pointerleave', onLeave)
+    return () => {
+      el.removeEventListener('pointermove', onMove)
+      el.removeEventListener('pointerleave', onLeave)
+    }
+  }, [])
+
   const zoomBy = (delta: number) => {
     const el = viewportRef.current
     if (!el) {
