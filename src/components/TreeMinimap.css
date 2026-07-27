@@ -1,0 +1,61 @@
+.tree-minimap {
+  position: absolute;
+  z-index: 6;
+  right: 1rem;
+  bottom: 1rem;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+.tree-minimap__world {
+  position: absolute;
+  overflow: hidden;
+  border-radius: calc(var(--radius-lg) - 4px);
+  background:
+    linear-gradient(165deg, rgba(232, 239, 233, 0.9), rgba(221, 231, 235, 0.95));
+}
+
+.tree-minimap__dot {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 70%, #6a7a6e);
+  pointer-events: none;
+}
+
+.tree-minimap__dot--male {
+  background: color-mix(in srgb, #5b7fa8 75%, #2f3d4d);
+}
+
+.tree-minimap__dot--female {
+  background: color-mix(in srgb, #c17a8a 75%, #5a3340);
+}
+
+.tree-minimap__viewport {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1.5px solid var(--teal);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--teal) 18%, transparent);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35) inset;
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .tree-minimap {
+    right: 0.65rem;
+    bottom: 4.2rem;
+    transform: scale(0.92);
+    transform-origin: bottom right;
+  }
+}

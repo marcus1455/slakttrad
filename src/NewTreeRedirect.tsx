@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { AuthMenu } from './components/AuthMenu'
 import { LoadingScreen } from './components/LoadingScreen'
 import { useAuth } from './lib/auth'
 import { createNewFamily } from './lib/storage'
+import { DEFAULT_TREE_SLUG } from './lib/supabase'
 import './App.css'
 
-/** `/` creates a new empty tree when signed in; otherwise prompts for login. */
+/** `/` creates a new empty tree when signed in; otherwise offers login or guest. */
 export function NewTreeRedirect() {
   const navigate = useNavigate()
   const { user, loading } = useAuth()
@@ -38,16 +39,28 @@ export function NewTreeRedirect() {
     return (
       <div className="app app--state app--auth-gate">
         <p className="app__brand">Släktträd</p>
-        <h1>Skapa ditt träd</h1>
+        <h1>Välkommen</h1>
         <p className="app__hint">
-          Logga in med e-post för att skapa ett nytt släktträd. Befintliga träd
-          (t.ex. Davidsson) går fortfarande att öppna via sin länk.
+          Logga in för att skapa och redigera egna träd, eller fortsätt som gäst
+          och titta på Davidsson-trädet.
         </p>
-        <div className="app__auth-gate-actions">
-          <AuthMenu showLabel />
-          <a className="app__tool" href="/trad/davidsson">
-            Öppna Davidsson
-          </a>
+        <div className="app__auth-gate-choices">
+          <div className="app__auth-gate-choice">
+            <p className="app__auth-gate-choice-title">Har du ett konto?</p>
+            <p className="app__auth-gate-choice-text">
+              Skapa nya träd, bjud in familjen och spara ändringar.
+            </p>
+            <AuthMenu showLabel />
+          </div>
+          <div className="app__auth-gate-choice app__auth-gate-choice--guest">
+            <p className="app__auth-gate-choice-title">Fortsätt som gäst</p>
+            <p className="app__auth-gate-choice-text">
+              Öppna Davidsson-trädet utan konto. Du kan titta, men inte redigera.
+            </p>
+            <Link className="app__tool app__tool--primary" to={`/trad/${DEFAULT_TREE_SLUG}`}>
+              Fortsätt som gäst
+            </Link>
+          </div>
         </div>
         {error ? <p className="app__hint app__hint--error">{error}</p> : null}
       </div>
@@ -59,7 +72,7 @@ export function NewTreeRedirect() {
       <div className="app app--state">
         <p>{error}</p>
         <p>
-          <a href="/trad/davidsson">Öppna Davidsson-trädet</a>
+          <Link to={`/trad/${DEFAULT_TREE_SLUG}`}>Öppna Davidsson-trädet</Link>
         </p>
       </div>
     )

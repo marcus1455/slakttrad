@@ -564,6 +564,22 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
           centerRequest={centerRequest}
           fitRequest={fitRequest}
           onPointerWorldMove={publishCursor}
+          minimapInsetRight={selectedId ? 380 : 0}
+          minimap={
+            treeLayout
+              ? {
+                  width: treeLayout.width,
+                  height: treeLayout.height,
+                  nodeWidth: NODE_WIDTH,
+                  nodeHeight: NODE_HEIGHT,
+                  markers: treeLayout.people.map((p) => ({
+                    x: p.x,
+                    y: p.y,
+                    gender: String(p.gender),
+                  })),
+                }
+              : null
+          }
           onBackgroundClick={() => {
             if (quickAdd || shareOpen || listOpen) return
             setSelectedId(null)

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { TreeMinimap, type MinimapWorld } from './TreeMinimap'
 import './PinchZoomPan.css'
 
 export type CenterRequest = {
@@ -20,6 +21,10 @@ type Props = {
   onBackgroundClick?: () => void
   /** Pointer position in tree/world coordinates (null when pointer leaves). */
   onPointerWorldMove?: (world: { x: number; y: number } | null) => void
+  /** World bounds + markers for the bottom-right overview map. */
+  minimap?: MinimapWorld | null
+  /** Shift minimap left when a side panel is open. */
+  minimapInsetRight?: number
 }
 
 const MIN_SCALE = 0.25
@@ -35,12 +40,15 @@ export function PinchZoomPan({
   fitRequest,
   onBackgroundClick,
   onPointerWorldMove,
+  minimap,
+  minimapInsetRight = 0,
 }: Props) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const scaleRef = useRef(0.7)
   const offsetRef = useRef({ x: 48, y: 48 })
   const [scale, setScale] = useState(0.7)
   const [offset, setOffset] = useState({ x: 48, y: 48 })
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
   const drag = useRef<{
     x: number
     y: number
@@ -85,6 +93,20 @@ export function PinchZoomPan({
     setScale(next)
     setOffset(nextOffset)
   }
+
+  useEffect(() => {
+    const el = viewportRef.current
+    if (!el) return
+
+    const measure = () => {
+      const rect = el.getBoundingClientRect()
+      setViewportSize({ width: rect.width, height: rect.height })
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   useEffect(() => {
     const el = viewportRef.current
@@ -148,13 +170,32 @@ export function PinchZoomPan({
     applyScale(scaleRef.current + delta, rect.width / 2, rect.height / 2)
   }
 
+  const navigateToWorld = useCallback((worldX: number, worldY: number) => {
+    const el = viewportRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const s = scaleRef.current
+    const nextOffset = {
+      x: rect.width / 2 - worldX * s,
+      y: rect.height / 2 - worldY * s,
+    }
+    offsetRef.current = nextOffset
+    setOffset(nextOffset)
+  }, [])
+
   return (
     <div
       ref={viewportRef}
       className="pan-zoom"
       onPointerDown={(e) => {
         const target = e.target as HTMLElement
-        if (target.closest('.person-card-slot, .pan-zoom__controls, .spouse-edge')) return
+        if (
+          target.closest(
+            '.person-card-slot, .pan-zoom__controls, .spouse-edge, .tree-minimap',
+          )
+        ) {
+          return
+        }
         drag.current = {
           x: e.clientX,
           y: e.clientY,
@@ -218,6 +259,16 @@ export function PinchZoomPan({
         </button>
         <span className="pan-zoom__level">{Math.round(scale * 100)}%</span>
       </div>
+      {minimap ? (
+        <TreeMinimap
+          world={minimap}
+          scale={scale}
+          offset={offset}
+          viewportSize={viewportSize}
+          onNavigate={navigateToWorld}
+          insetRight={minimapInsetRight}
+        />
+      ) : null}
       <div
         className="pan-zoom__canvas"
         style={{

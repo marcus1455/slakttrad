@@ -42,6 +42,60 @@
   margin-top: 0.5rem;
 }
 
+.app__auth-gate-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.85rem;
+  width: min(100%, 36rem);
+  margin-top: 0.85rem;
+  text-align: left;
+}
+
+.app__auth-gate-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 1rem 1.1rem 1.15rem;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: var(--shadow);
+}
+
+.app__auth-gate-choice-title {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.app__auth-gate-choice-text {
+  margin: 0;
+  flex: 1;
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.app__auth-gate-choice .auth-menu,
+.app__auth-gate-choice .app__tool {
+  margin-top: 0.25rem;
+}
+
+.app__tool--primary {
+  background: var(--teal);
+  color: #fff;
+  border-color: transparent;
+}
+
+.app__tool--primary:hover {
+  background: color-mix(in srgb, var(--teal) 88%, #000);
+  color: #fff;
+}
+
 .app__header {
   display: flex;
   align-items: flex-end;
@@ -91,6 +145,10 @@
 }
 
 .app__tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
   padding: 0.55rem 0.8rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -99,6 +157,7 @@
   font-family: var(--font-ui);
   font-size: 0.82rem;
   font-weight: 600;
+  text-decoration: none;
   cursor: pointer;
   white-space: nowrap;
 }
