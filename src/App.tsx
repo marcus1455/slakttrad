@@ -182,7 +182,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
           shareToken: '',
           ownerId: null,
         })
-        setSelectedId(guest.store.rootId)
+        setSelectedId(null)
         setMayEdit(true)
         setStatus('ready')
         setError(null)
@@ -202,7 +202,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
         skipNextSave.current = true
         setStore(loaded.store)
         setMeta(loaded.meta)
-        setSelectedId(loaded.store.rootId)
+        setSelectedId(null)
         setStatus('ready')
         setError(null)
         document.title = `Släktträd · ${loaded.meta.name}`
