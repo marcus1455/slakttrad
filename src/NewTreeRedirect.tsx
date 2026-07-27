@@ -1,16 +1,23 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { AuthMenu } from './components/AuthMenu'
 import { LoadingScreen } from './components/LoadingScreen'
 import { useAuth } from './lib/auth'
 import { createNewFamily } from './lib/storage'
-import './App.css'
+import './WelcomeGate.css'
 
-/** `/` creates a new empty tree when signed in; otherwise offers login or guest. */
+type AuthMode = 'login' | 'register'
+
+/** `/` creates a new empty tree when signed in; otherwise shows the welcome gate. */
 export function NewTreeRedirect() {
   const navigate = useNavigate()
-  const { user, loading } = useAuth()
+  const { user, loading, signInWithPassword, signUpWithPassword } = useAuth()
   const [error, setError] = useState<string | null>(null)
+  const [mode, setMode] = useState<AuthMode>('login')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [passwordConfirm, setPasswordConfirm] = useState('')
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [formError, setFormError] = useState<string | null>(null)
 
   useEffect(() => {
     if (loading || !user) return
@@ -35,35 +42,152 @@ export function NewTreeRedirect() {
   }
 
   if (!user) {
+    const submitLabel =
+      status === 'sending'
+        ? mode === 'register'
+          ? 'Skapar konto…'
+          : 'Loggar in…'
+        : mode === 'register'
+          ? 'Skapa konto'
+          : 'Logga in'
+
     return (
-      <div className="app app--state app--auth-gate">
-        <p className="app__brand">Släktträd</p>
-        <h1>Välkommen</h1>
-        <p className="app__hint">
-          Logga in för att skapa och spara egna träd i molnet, eller fortsätt
-          som gäst med ett tomt träd i den här webbläsaren.
-        </p>
-        <div className="app__auth-gate-choices">
-          <div className="app__auth-gate-choice">
-            <p className="app__auth-gate-choice-title">Har du ett konto?</p>
-            <p className="app__auth-gate-choice-text">
-              Skapa nya träd, bjud in familjen och spara ändringar.
-            </p>
-            <AuthMenu showLabel />
-          </div>
-          <div className="app__auth-gate-choice app__auth-gate-choice--guest">
-            <p className="app__auth-gate-choice-title">Fortsätt som gäst</p>
-            <p className="app__auth-gate-choice-text">
-              Börja med ett tomt träd här. Det sparas i den här sessionen tills
-              du anger e-post och sparar det på ett konto. Familjeträd som
-              Davidsson öppnas via delningslänk.
-            </p>
-            <Link className="app__tool app__tool--primary" to="/gast">
-              Fortsätt som gäst
+      <div className="welcome-gate">
+        <div className="welcome-gate__glow" aria-hidden />
+        <div className="welcome-gate__panel">
+          <p className="welcome-gate__brand">Släktträd</p>
+          <h1 className="welcome-gate__title">
+            {mode === 'register' ? 'Skapa konto' : 'Välkommen tillbaka'}
+          </h1>
+          <p className="welcome-gate__lead">
+            {mode === 'register'
+              ? 'Skapa ett konto för att spara träd i molnet och bjuda in familjen.'
+              : 'Logga in för att skapa och spara egna träd — eller skissa vidare utan konto.'}
+          </p>
+
+          <form
+            className="welcome-gate__form"
+            onSubmit={async (e: FormEvent) => {
+              e.preventDefault()
+              setStatus('sending')
+              setFormError(null)
+              try {
+                sessionStorage.setItem('auth_next', '/')
+                if (mode === 'register') {
+                  if (password.length < 6) {
+                    throw new Error('Lösenordet måste vara minst 6 tecken')
+                  }
+                  if (password !== passwordConfirm) {
+                    throw new Error('Lösenorden matchar inte')
+                  }
+                  const signedIn = await signUpWithPassword(email, password)
+                  if (!signedIn) {
+                    setStatus('sent')
+                    return
+                  }
+                } else {
+                  await signInWithPassword(email, password)
+                }
+                setStatus('idle')
+              } catch (err) {
+                setStatus('error')
+                setFormError(
+                  err instanceof Error ? err.message : 'Kunde inte logga in',
+                )
+              }
+            }}
+          >
+            <label>
+              E-post
+              <input
+                type="email"
+                required
+                autoFocus
+                autoComplete="email"
+                placeholder="namn@exempel.se"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </label>
+            <label>
+              Lösenord
+              <input
+                type="password"
+                required
+                minLength={6}
+                autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+                placeholder="Minst 6 tecken"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
+            {mode === 'register' ? (
+              <label>
+                Upprepa lösenord
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                  placeholder="Skriv lösenordet igen"
+                  value={passwordConfirm}
+                  onChange={(e) => setPasswordConfirm(e.target.value)}
+                />
+              </label>
+            ) : null}
+
+            {status === 'sent' ? (
+              <p className="welcome-gate__ok">
+                Konto skapat — kolla din inkorg och bekräfta e-posten.
+              </p>
+            ) : null}
+            {formError ? <p className="welcome-gate__error">{formError}</p> : null}
+
+            <button
+              type="submit"
+              className="welcome-gate__submit"
+              disabled={status === 'sending' || status === 'sent'}
+            >
+              {submitLabel}
+            </button>
+          </form>
+
+          <div className="welcome-gate__footer">
+            {mode === 'login' ? (
+              <button
+                type="button"
+                className="welcome-gate__link"
+                onClick={() => {
+                  setMode('register')
+                  setStatus('idle')
+                  setFormError(null)
+                  setPasswordConfirm('')
+                }}
+              >
+                Skapa konto
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="welcome-gate__link"
+                onClick={() => {
+                  setMode('login')
+                  setStatus('idle')
+                  setFormError(null)
+                  setPasswordConfirm('')
+                }}
+              >
+                Har du redan konto? Logga in
+              </button>
+            )}
+            <span className="welcome-gate__dot" aria-hidden>
+              ·
+            </span>
+            <Link className="welcome-gate__link" to="/gast">
+              Börja skissa utan konto
             </Link>
           </div>
         </div>
-        {error ? <p className="app__hint app__hint--error">{error}</p> : null}
       </div>
     )
   }
@@ -73,7 +197,7 @@ export function NewTreeRedirect() {
       <div className="app app--state">
         <p>{error}</p>
         <p>
-          <Link to="/gast">Fortsätt som gäst</Link>
+          <Link to="/gast">Börja skissa utan konto</Link>
         </p>
       </div>
     )

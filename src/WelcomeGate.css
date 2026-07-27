@@ -1,0 +1,199 @@
+.welcome-gate {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 100svh;
+  padding: 2rem 1.25rem 3rem;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 90% 70% at 50% -10%, rgba(47, 93, 80, 0.16), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 100% 80%, rgba(61, 90, 128, 0.08), transparent 50%),
+    linear-gradient(165deg, #f7f3eb 0%, var(--paper) 48%, #e5ebe6 100%);
+  color: var(--ink);
+}
+
+.welcome-gate__glow {
+  position: absolute;
+  inset: 18% 10% auto;
+  height: 40%;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 255, 255, 0.55),
+    transparent 70%
+  );
+  filter: blur(8px);
+}
+
+.welcome-gate__panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: min(100%, 26rem);
+  flex-direction: column;
+  align-items: stretch;
+  animation: welcome-gate-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes welcome-gate-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-gate__panel {
+    animation: none;
+  }
+}
+
+.welcome-gate__brand {
+  margin: 0 0 0.85rem;
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--teal);
+  text-align: center;
+}
+
+.welcome-gate__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.1rem, 5vw, 2.75rem);
+  font-weight: 600;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  text-align: center;
+  color: var(--ink);
+}
+
+.welcome-gate__lead {
+  margin: 0.75rem 0 0;
+  font-family: var(--font-ui);
+  font-size: 0.98rem;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--muted);
+}
+
+.welcome-gate__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 1.75rem;
+}
+
+.welcome-gate__form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: color-mix(in srgb, var(--ink) 72%, var(--muted));
+}
+
+.welcome-gate__form input {
+  padding: 0.8rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 88%, #fff);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.welcome-gate__form input:focus {
+  outline: none;
+  border-color: var(--teal);
+  box-shadow:
+    0 0 0 3px rgba(47, 93, 80, 0.14),
+    0 1px 0 rgba(255, 255, 255, 0.65) inset;
+}
+
+.welcome-gate__submit {
+  margin-top: 0.35rem;
+  padding: 0.85rem 1rem;
+  border: none;
+  border-radius: 12px;
+  background: var(--teal);
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    transform 140ms ease;
+}
+
+.welcome-gate__submit:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--teal) 88%, #000);
+}
+
+.welcome-gate__submit:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.welcome-gate__submit:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.welcome-gate__error,
+.welcome-gate__ok {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.welcome-gate__error {
+  color: var(--danger);
+}
+
+.welcome-gate__ok {
+  color: var(--teal);
+}
+
+.welcome-gate__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem 0.55rem;
+  margin-top: 1.35rem;
+  font-family: var(--font-ui);
+  font-size: 0.88rem;
+}
+
+.welcome-gate__link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--teal);
+  font: inherit;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.welcome-gate__link:hover {
+  text-decoration: underline;
+}
+
+.welcome-gate__dot {
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
+  user-select: none;
+}
