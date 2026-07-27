@@ -16,11 +16,15 @@ type FamilyTreeRow = {
   owner_id?: string | null
 }
 
+export type TreeAccessRole = 'owner' | 'editor' | 'viewer'
+
+export type CollaboratorRole = 'editor' | 'viewer'
+
 export type TreeSummary = {
   id: string
   slug: string
   name: string
-  role: 'owner' | 'collaborator'
+  role: TreeAccessRole
 }
 
 function newSlug() {
@@ -146,7 +150,7 @@ export async function listMyTrees(): Promise<TreeSummary[]> {
         .eq('owner_id', user.id),
       supabase
         .from('tree_collaborators')
-        .select('tree_id, family_trees ( id, slug, name, updated_at )')
+        .select('tree_id, role, family_trees ( id, slug, name, updated_at )')
         .or(
           email
             ? `user_id.eq.${user.id},email.eq.${JSON.stringify(email)}`
@@ -173,12 +177,14 @@ export async function listMyTrees(): Promise<TreeSummary[]> {
       | { id: string; slug: string; name: string; updated_at?: string }
       | null
       | undefined
+    const accessRole: TreeAccessRole =
+      row.role === 'viewer' ? 'viewer' : 'editor'
     if (t?.id && !byId.has(t.id)) {
       byId.set(t.id, {
         id: t.id,
         slug: t.slug,
         name: t.name,
-        role: 'collaborator',
+        role: accessRole,
         updated_at: t.updated_at,
       })
     }
@@ -199,46 +205,85 @@ export type TreeCollaborator = {
   id: string
   email: string
   userId: string | null
+  role: CollaboratorRole
   createdAt: string
+}
+
+function mapCollaboratorRow(row: {
+  id: string
+  email: string
+  user_id: string | null
+  role?: string | null
+  created_at: string
+}): TreeCollaborator {
+  return {
+    id: row.id,
+    email: row.email,
+    userId: row.user_id,
+    role: row.role === 'viewer' ? 'viewer' : 'editor',
+    createdAt: row.created_at,
+  }
 }
 
 export async function listTreeCollaborators(treeId: string): Promise<TreeCollaborator[]> {
   const { data, error } = await supabase
     .from('tree_collaborators')
-    .select('id, email, user_id, created_at')
+    .select('id, email, user_id, role, created_at')
     .eq('tree_id', treeId)
     .order('created_at', { ascending: true })
 
   if (error) throw error
-  return (data ?? []).map((row) => ({
-    id: row.id as string,
-    email: row.email as string,
-    userId: (row.user_id as string | null) ?? null,
-    createdAt: row.created_at as string,
-  }))
+  return (data ?? []).map((row) =>
+    mapCollaboratorRow(row as {
+      id: string
+      email: string
+      user_id: string | null
+      role?: string | null
+      created_at: string
+    }),
+  )
 }
 
 export async function inviteTreeCollaborator(
   treeId: string,
   email: string,
+  role: CollaboratorRole = 'editor',
 ): Promise<TreeCollaborator> {
   const { data, error } = await supabase.rpc('invite_tree_collaborator', {
     p_tree_id: treeId,
     p_email: email.trim(),
+    p_role: role,
   })
   if (error) throw error
-  const row = data as {
-    id: string
-    email: string
-    user_id: string | null
-    created_at: string
-  }
-  return {
-    id: row.id,
-    email: row.email,
-    userId: row.user_id,
-    createdAt: row.created_at,
-  }
+  return mapCollaboratorRow(
+    data as {
+      id: string
+      email: string
+      user_id: string | null
+      role?: string | null
+      created_at: string
+    },
+  )
+}
+
+export async function setTreeCollaboratorRole(
+  collaboratorId: string,
+  role: CollaboratorRole,
+): Promise<TreeCollaborator> {
+  const { data, error } = await supabase.rpc('set_tree_collaborator_role', {
+    p_collaborator_id: collaboratorId,
+    p_role: role,
+  })
+  if (error) throw error
+  return mapCollaboratorRow(
+    data as {
+      id: string
+      email: string
+      user_id: string | null
+      role?: string | null
+      created_at: string
+    },
+  )
 }
 
 export async function removeTreeCollaborator(collaboratorId: string): Promise<void> {

@@ -38,7 +38,6 @@ import {
   createFamilyFromStore,
   loadFamilyByShareToken,
   loadFamilyBySlug,
-  rotateShareToken,
   saveFamily,
   shareUrlForToken,
 } from './lib/storage'
@@ -421,12 +420,6 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
     setSelectedId(id)
   }, [])
 
-  const renewShareLink = useCallback(async () => {
-    if (!meta || readOnly) return
-    const next = await rotateShareToken(meta.slug)
-    setMeta(next)
-  }, [meta, readOnly])
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
@@ -558,14 +551,6 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
           <SearchBar store={store} onSelect={onCenter} />
           <button type="button" className="app__tool" onClick={() => setListOpen(true)}>
             Personer
-          </button>
-          <button
-            type="button"
-            className="app__tool"
-            onClick={() => onCenter(focusId)}
-            disabled={!focusId}
-          >
-            Till {focusName}
           </button>
           <TreeViewMenu store={store} view={treeView} onChange={onChangeView} />
           {!readOnly ? (
@@ -823,7 +808,6 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
               (meta.ownerId == null || meta.ownerId === user.id)
             }
             onClose={() => setShareOpen(false)}
-            onRenew={renewShareLink}
           />
         ) : null}
       </main>

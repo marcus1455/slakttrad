@@ -4,6 +4,8 @@ import {
   inviteTreeCollaborator,
   listTreeCollaborators,
   removeTreeCollaborator,
+  setTreeCollaboratorRole,
+  type CollaboratorRole,
   type TreeCollaborator,
 } from '../lib/storage'
 import './ShareDialog.css'
@@ -14,16 +16,19 @@ type Props = {
   /** True when the signed-in user may invite/remove collaborators. */
   canInvite: boolean
   onClose: () => void
-  onRenew: () => Promise<void>
 }
 
-export function ShareDialog({ url, treeId, canInvite, onClose, onRenew }: Props) {
+const ROLE_LABELS: Record<CollaboratorRole, string> = {
+  editor: 'Kan redigera',
+  viewer: 'Endast visning',
+}
+
+export function ShareDialog({ url, treeId, canInvite, onClose }: Props) {
   const { user } = useAuth()
   const [copied, setCopied] = useState(false)
-  const [confirmRenew, setConfirmRenew] = useState(false)
-  const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteRole, setInviteRole] = useState<CollaboratorRole>('editor')
   const [inviteBusy, setInviteBusy] = useState(false)
   const [inviteOk, setInviteOk] = useState<string | null>(null)
   const [collaborators, setCollaborators] = useState<TreeCollaborator[]>([])
@@ -52,13 +57,12 @@ export function ShareDialog({ url, treeId, canInvite, onClose, onRenew }: Props)
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
-        if (confirmRenew) setConfirmRenew(false)
-        else onClose()
+        onClose()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose, confirmRenew])
+  }, [onClose])
 
   const copy = async () => {
     try {
@@ -70,37 +74,34 @@ export function ShareDialog({ url, treeId, canInvite, onClose, onRenew }: Props)
     }
   }
 
-  const renew = async () => {
-    setBusy(true)
-    setError(null)
-    try {
-      await onRenew()
-      setConfirmRenew(false)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Kunde inte skapa ny länk')
-    } finally {
-      setBusy(false)
-    }
-  }
-
   const invite = async (e: FormEvent) => {
     e.preventDefault()
     setInviteBusy(true)
     setInviteOk(null)
     setError(null)
     try {
-      const row = await inviteTreeCollaborator(treeId, inviteEmail)
+      const row = await inviteTreeCollaborator(treeId, inviteEmail, inviteRole)
       setInviteEmail('')
       setInviteOk(
-        `${row.email} kan nu redigera trädet efter inloggning med samma e-post.`,
+        inviteRole === 'editor'
+          ? `${row.email} kan redigera trädet efter inloggning med samma e-post.`
+          : `${row.email} kan titta på trädet efter inloggning med samma e-post.`,
       )
       await refreshCollaborators()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Kunde inte bjuda in')
     } finally {
       setInviteBusy(false)
+    }
+  }
+
+  const changeRole = async (id: string, role: CollaboratorRole) => {
+    setError(null)
+    try {
+      await setTreeCollaboratorRole(id, role)
+      await refreshCollaborators()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Kunde inte ändra roll')
     }
   }
 
@@ -137,81 +138,72 @@ export function ShareDialog({ url, treeId, canInvite, onClose, onRenew }: Props)
               </button>
             </div>
           </label>
-
-          {confirmRenew ? (
-            <div className="share-dialog__renew-box">
-              <p>
-                Skapa en ny länk? Den gamla slutar fungera direkt — skicka den nya till dem
-                som ska kunna se trädet.
-              </p>
-              <div className="share-dialog__actions">
-                <button
-                  type="button"
-                  className="ghost"
-                  disabled={busy}
-                  onClick={() => setConfirmRenew(false)}
-                >
-                  Avbryt
-                </button>
-                <button type="button" disabled={busy} onClick={() => void renew()}>
-                  {busy ? 'Skapar…' : 'Skapa ny länk'}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="share-dialog__link-renew"
-              onClick={() => setConfirmRenew(true)}
-            >
-              Skapa ny visa-länk
-            </button>
-          )}
         </section>
 
         {canInvite ? (
           <section className="share-dialog__section">
-            <h4>Bjud in att redigera</h4>
+            <h4>Bjud in</h4>
             <p className="share-dialog__lead">
-              Lägg till e-post — personen loggar in och kan redigera hela trädet (inte
-              bara en person).
+              Lägg till e-post — personen loggar in och får tillgång till hela trädet.
             </p>
 
             <form className="share-dialog__invite" onSubmit={(e) => void invite(e)}>
               <label className="share-dialog__field">
                 E-post
-                <div className="share-dialog__url-row">
-                  <input
-                    type="email"
-                    required
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    placeholder="namn@exempel.se"
-                    autoComplete="email"
-                  />
-                  <button type="submit" disabled={inviteBusy}>
-                    {inviteBusy ? 'Bjuder in…' : 'Bjud in'}
-                  </button>
-                </div>
+                <input
+                  type="email"
+                  required
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="namn@exempel.se"
+                  autoComplete="email"
+                />
               </label>
+
+              <label className="share-dialog__field">
+                Roll
+                <select
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value as CollaboratorRole)}
+                >
+                  <option value="editor">{ROLE_LABELS.editor}</option>
+                  <option value="viewer">{ROLE_LABELS.viewer}</option>
+                </select>
+              </label>
+
+              <button type="submit" className="share-dialog__invite-submit" disabled={inviteBusy}>
+                {inviteBusy ? 'Bjuder in…' : 'Bjud in'}
+              </button>
             </form>
 
             {inviteOk ? <p className="share-dialog__ok">{inviteOk}</p> : null}
 
             {collabLoading && collaborators.length === 0 ? (
-              <p className="share-dialog__lead">Laddar medarbetare…</p>
+              <p className="share-dialog__lead">Laddar inbjudna…</p>
             ) : null}
 
             {collaborators.length > 0 ? (
               <ul className="share-dialog__collab-list">
                 {collaborators.map((c) => (
                   <li key={c.id}>
-                    <span>
-                      {c.email}
-                      {!c.userId ? (
-                        <em className="share-dialog__pending"> · väntar på konto</em>
-                      ) : null}
-                    </span>
+                    <div className="share-dialog__collab-main">
+                      <span>
+                        {c.email}
+                        {!c.userId ? (
+                          <em className="share-dialog__pending"> · väntar på konto</em>
+                        ) : null}
+                      </span>
+                      <select
+                        aria-label={`Roll för ${c.email}`}
+                        value={c.role}
+                        onChange={(e) =>
+                          void changeRole(c.id, e.target.value as CollaboratorRole)
+                        }
+                      >
+                        <option value="editor">{ROLE_LABELS.editor}</option>
+                        <option value="viewer">{ROLE_LABELS.viewer}</option>
+                      </select>
+                    </div>
                     <button type="button" onClick={() => void remove(c.id)}>
                       Ta bort
                     </button>
@@ -222,7 +214,7 @@ export function ShareDialog({ url, treeId, canInvite, onClose, onRenew }: Props)
           </section>
         ) : user ? null : (
           <p className="share-dialog__lead">
-            Logga in som ägare för att bjuda in medarbetare som kan redigera.
+            Logga in som ägare för att bjuda in personer till trädet.
           </p>
         )}
 

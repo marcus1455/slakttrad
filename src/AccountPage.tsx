@@ -167,7 +167,12 @@ export function AccountPage() {
                       <Link to={`/trad/${tree.slug}`} className="account-page__tree-link">
                         <span className="account-page__tree-name">{tree.name}</span>
                         <span className="account-page__tree-meta">
-                          {tree.role === 'owner' ? 'Ägare' : 'Medarbetare'} · /trad/
+                          {tree.role === 'owner'
+                            ? 'Ägare'
+                            : tree.role === 'viewer'
+                              ? 'Endast visning'
+                              : 'Kan redigera'}{' '}
+                          · /trad/
                           {tree.slug}
                         </span>
                       </Link>
