@@ -23,7 +23,7 @@ export function AuthCallbackPage() {
           if (sessionError) throw sessionError
         }
         if (cancelled) return
-        const next = sessionStorage.getItem('auth_next') ?? '/'
+        const next = sessionStorage.getItem('auth_next') ?? '/konto'
         sessionStorage.removeItem('auth_next')
         navigate(next, { replace: true })
       } catch (err) {

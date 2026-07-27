@@ -124,14 +124,6 @@ export function AuthMenu({ showLabel = false, avatarUrl: avatarOverride }: Props
             >
               Se mina träd
             </Link>
-            <Link
-              to="/"
-              className="auth-menu__action"
-              role="menuitem"
-              onClick={() => setOpen(false)}
-            >
-              + Nytt träd
-            </Link>
             <button
               type="button"
               className="auth-menu__action auth-menu__action--muted"
