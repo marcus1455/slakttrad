@@ -1,0 +1,62 @@
+.tree-view-menu {
+  position: relative;
+}
+
+.tree-view-menu__panel {
+  position: absolute;
+  z-index: 25;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  min-width: 200px;
+  padding: 0.4rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 98%, transparent);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+}
+
+.tree-view-menu__heading {
+  margin: 0.35rem 0.45rem 0.25rem;
+  font-family: var(--font-ui);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tree-view-menu__panel button {
+  display: block;
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tree-view-menu__panel button:hover {
+  background: var(--teal-soft);
+}
+
+.tree-view-menu__panel button.is-active {
+  background: rgba(47, 93, 80, 0.16);
+  color: var(--teal);
+}
+
+.app__tool--active {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+.app__tool--filtered {
+  border-color: var(--teal);
+  background: var(--teal-soft);
+  color: var(--teal);
+}

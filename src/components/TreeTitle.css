@@ -1,0 +1,68 @@
+.tree-title {
+  margin: 0.15rem 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.tree-title--button {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  margin: 0.15rem 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: text;
+  text-align: left;
+}
+
+.tree-title--button h1 {
+  margin: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+
+.tree-title__hint {
+  font-family: var(--font-ui);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.tree-title--button:hover .tree-title__hint,
+.tree-title--button:focus-visible .tree-title__hint {
+  opacity: 1;
+}
+
+.tree-title--button:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.tree-title--input {
+  width: min(18rem, 52vw);
+  margin: 0.15rem 0 0;
+  padding: 0.1rem 0.25rem;
+  border: 0;
+  border-bottom: 2px solid var(--teal);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  caret-color: var(--teal);
+}
+
+.tree-title--input:focus {
+  outline: none;
+}

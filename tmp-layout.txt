@@ -1,0 +1,10 @@
+SEED+lena/bjorn total=17
+best=sofia count=0
+try root=sofia visible=10/17 missing=[camilla,peter,david,julia,sara,orvar,folke] hasSubTree=[inger,orjan]
+try root=orjan visible=15/17 missing=[lena,bjorn] hasSubTree=[annsofie]
+try root=inger visible=15/17 missing=[lena,bjorn] hasSubTree=[annsofie]
+try root=mikael visible=15/17 missing=[lena,bjorn] hasSubTree=[annsofie]
+try root=camilla visible=15/17 missing=[lena,bjorn] hasSubTree=[annsofie]
+try root=annsofie visible=8/17 missing=[orjan,inger,camilla,peter,david,julia,sara,orvar,folke] hasSubTree=[mikael]
+try root=lena visible=8/17 missing=[orjan,inger,camilla,peter,david,julia,sara,orvar,folke] hasSubTree=[mikael]
+try root=sofia visible=10/17 missing=[camilla,peter,david,julia,sara,orvar,folke] hasSubTree=[inger,orjan]

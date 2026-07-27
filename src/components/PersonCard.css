@@ -1,0 +1,283 @@
+.person-card-slot {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  padding: 8px;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.person-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.2rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.4rem 0.45rem;
+  border: 1px solid rgba(28, 36, 28, 0.06);
+  border-radius: 12px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.55) inset,
+    0 1px 2px rgba(28, 36, 28, 0.04),
+    0 6px 18px rgba(28, 36, 28, 0.07);
+  animation: person-card-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition:
+    translate 160ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease;
+}
+
+@keyframes person-card-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .person-card {
+    animation: none;
+  }
+}
+
+.person-card:hover {
+  translate: 0 -1px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 2px 4px rgba(28, 36, 28, 0.05),
+    0 12px 26px rgba(28, 36, 28, 0.11);
+}
+
+.person-card--male {
+  background: linear-gradient(155deg, var(--male-from) 0%, var(--male-to) 100%);
+  color: var(--male-ink);
+}
+
+.person-card--female {
+  background: linear-gradient(155deg, var(--female-from) 0%, var(--female-to) 100%);
+  color: var(--female-ink);
+}
+
+.person-card--deceased {
+  filter: saturate(0.92);
+}
+
+.person-card--selected {
+  border-color: var(--teal);
+  box-shadow:
+    0 0 0 2px rgba(47, 93, 80, 0.2),
+    0 8px 22px rgba(28, 36, 28, 0.12);
+}
+
+.person-card--focus {
+  border-color: var(--teal);
+  box-shadow:
+    0 0 0 1px rgba(47, 93, 80, 0.35),
+    0 0 0 4px rgba(47, 93, 80, 0.1),
+    0 8px 22px rgba(28, 36, 28, 0.1);
+}
+
+.person-card--focus.person-card--selected {
+  box-shadow:
+    0 0 0 2px rgba(47, 93, 80, 0.28),
+    0 0 0 5px rgba(47, 93, 80, 0.12),
+    0 10px 24px rgba(28, 36, 28, 0.12);
+}
+
+.person-card__main {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.15rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.person-card__photo,
+.person-card__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  object-fit: cover;
+  box-shadow: 0 0 0 1px rgba(28, 36, 28, 0.08);
+}
+
+.person-card__avatar {
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.62);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.person-card--male .person-card__avatar {
+  background: rgba(255, 255, 255, 0.55);
+  color: #2a4554;
+}
+
+.person-card--female .person-card__avatar {
+  background: rgba(255, 255, 255, 0.55);
+  color: #5a3830;
+}
+
+.person-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.person-card__name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.18;
+  letter-spacing: -0.015em;
+  word-break: break-word;
+}
+
+.person-card__nickname {
+  font-family: var(--font-ui);
+  font-size: 0.7rem;
+  font-weight: 500;
+  font-style: italic;
+  line-height: 1.15;
+  opacity: 0.78;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.person-card__relation {
+  font-family: var(--font-ui);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--teal);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.person-card__meta {
+  font-family: var(--font-ui);
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  opacity: 0.72;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.person-card--deceased .person-card__meta {
+  opacity: 0.78;
+}
+
+.person-card__dot {
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--teal);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(28, 36, 28, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease,
+    width 140ms ease,
+    height 140ms ease;
+}
+
+.person-card__dot span {
+  display: block;
+  translate: 0 -0.5px;
+}
+
+.person-card-slot--editable:hover .person-card__dot,
+.person-card-slot--editable:focus-within .person-card__dot,
+.person-card-slot--selected.person-card-slot--editable .person-card__dot {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.person-card__dot--parent {
+  top: 1px;
+  left: 50%;
+  transform: translate(-50%, 0) scale(0.92);
+}
+
+.person-card__dot--child {
+  bottom: 1px;
+  left: 50%;
+  transform: translate(-50%, 0) scale(0.92);
+}
+
+.person-card__dot--partner {
+  top: 50%;
+  right: 1px;
+  transform: translate(0, -50%) scale(0.92);
+}
+
+.person-card-slot--editable:hover .person-card__dot--parent,
+.person-card-slot--editable:focus-within .person-card__dot--parent,
+.person-card-slot--selected.person-card-slot--editable .person-card__dot--parent {
+  transform: translate(-50%, 0) scale(1);
+}
+
+.person-card-slot--editable:hover .person-card__dot--child,
+.person-card-slot--editable:focus-within .person-card__dot--child,
+.person-card-slot--selected.person-card-slot--editable .person-card__dot--child {
+  transform: translate(-50%, 0) scale(1);
+}
+
+.person-card-slot--editable:hover .person-card__dot--partner,
+.person-card-slot--editable:focus-within .person-card__dot--partner,
+.person-card-slot--selected.person-card-slot--editable .person-card__dot--partner {
+  transform: translate(0, -50%) scale(1);
+}
+
+.person-card__dot:hover {
+  width: 22px;
+  height: 22px;
+  background: #244a40;
+}
+
+@media (hover: none) {
+  .person-card-slot--editable .person-card__dot {
+    opacity: 0.55;
+    pointer-events: auto;
+  }
+
+  .person-card-slot--selected.person-card-slot--editable .person-card__dot {
+    opacity: 1;
+  }
+}

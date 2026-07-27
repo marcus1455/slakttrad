@@ -1,0 +1,89 @@
+.spouse-edge {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
+}
+
+.spouse-edge__line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  margin: 0;
+  translate: 0 -50%;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--teal) 45%, #9aaba0);
+  opacity: 0.8;
+  pointer-events: none;
+  transition:
+    height 140ms ease,
+    opacity 140ms ease,
+    background 140ms ease;
+}
+
+.spouse-edge__add {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--teal);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(28, 36, 28, 0.2);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.86);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease,
+    background 140ms ease;
+}
+
+.spouse-edge__add span {
+  display: block;
+  translate: 0 -0.5px;
+}
+
+.spouse-edge:hover .spouse-edge__line,
+.spouse-edge:focus-within .spouse-edge__line {
+  height: 3px;
+  opacity: 1;
+  background: var(--teal);
+}
+
+.spouse-edge:hover .spouse-edge__add,
+.spouse-edge:focus-within .spouse-edge__add {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.spouse-edge__add:hover {
+  background: #244a40;
+  transform: translate(-50%, -50%) scale(1.08);
+}
+
+@media (hover: none) {
+  .spouse-edge__add {
+    opacity: 0.7;
+    pointer-events: auto;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+
+  .spouse-edge:focus-within .spouse-edge__add {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
