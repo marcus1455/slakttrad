@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import {
@@ -24,6 +24,39 @@ function UserIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
         d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+      />
+    </svg>
+  )
+}
+
+function SettingsIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M8.6 1.8a1 1 0 0 1 1.8 0l.45 1.02a7.2 7.2 0 0 1 1.45.6l1.03-.42a1 1 0 0 1 1.26.46l.9 1.56a1 1 0 0 1-.27 1.31l-.85.67c.05.4.08.8.08 1.2s-.03.8-.08 1.2l.85.67a1 1 0 0 1 .27 1.31l-.9 1.56a1 1 0 0 1-1.26.46l-1.03-.42c-.46.26-.95.46-1.45.6l-.45 1.02a1 1 0 0 1-1.8 0l-.45-1.02a7.2 7.2 0 0 1-1.45-.6l-1.03.42a1 1 0 0 1-1.26-.46l-.9-1.56a1 1 0 0 1 .27-1.31l.85-.67A7.8 7.8 0 0 1 5.5 10c0-.4.03-.8.08-1.2l-.85-.67a1 1 0 0 1-.27-1.31l.9-1.56a1 1 0 0 1 1.26-.46l1.03.42c.46-.26.95-.46 1.45-.6L8.6 1.8ZM9.5 7.1a2.9 2.9 0 1 0 0 5.8 2.9 2.9 0 0 0 0-5.8Z"
+      />
+    </svg>
+  )
+}
+
+function TreesIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M9.2 2.2a.8.8 0 0 1 1.6 0v2.1h3.8a1 1 0 0 1 1 1V8a1 1 0 0 1-1 1h-3v1.8h2.2a1 1 0 0 1 1 1V15a1 1 0 0 1-1 1H6.2a1 1 0 0 1-1-1v-3.2a1 1 0 0 1 1-1h2.2V9h-3a1 1 0 0 1-1-1V5.3a1 1 0 0 1 1-1h3.8V2.2Zm-3.2 3.7v1.5h8V5.9h-8Zm.8 6.4V14h2.6v-1.7H6.8Zm4.2 0V14h2.6v-1.7H11Z"
+      />
+    </svg>
+  )
+}
+
+function LogoutIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M10.2 2.5a.8.8 0 0 1 .8-.8h3.2a1.8 1.8 0 0 1 1.8 1.8v13a1.8 1.8 0 0 1-1.8 1.8H11a.8.8 0 1 1 0-1.6h3.2a.2.2 0 0 0 .2-.2v-13a.2.2 0 0 0-.2-.2H11a.8.8 0 0 1-.8-.8ZM9.73 5.53a.75.75 0 0 1 1.06 0l3.44 3.44a.75.75 0 0 1 0 1.06l-3.44 3.44a.75.75 0 1 1-1.06-1.06l2.16-2.16H4.75a.75.75 0 0 1 0-1.5h7.14L9.73 6.59a.75.75 0 0 1 0-1.06Z"
       />
     </svg>
   )
@@ -88,6 +121,25 @@ export function AuthMenu({ showLabel = false, avatarUrl: avatarOverride }: Props
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [error, setError] = useState<string | null>(null)
+  const rootRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (e: PointerEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
 
   if (loading) return null
 
@@ -95,7 +147,7 @@ export function AuthMenu({ showLabel = false, avatarUrl: avatarOverride }: Props
     const name = displayNameFromUser(user)
     const avatarUrl = avatarOverride || avatarUrlFromUser(user)
     return (
-      <div className="auth-menu">
+      <div className="auth-menu" ref={rootRef}>
         <button
           type="button"
           className="app__tool auth-menu__account"
@@ -117,23 +169,34 @@ export function AuthMenu({ showLabel = false, avatarUrl: avatarOverride }: Props
               </div>
             </div>
             <Link
-              to="/konto"
-              className="auth-menu__action"
+              to="/konto/profil"
+              className="auth-menu__nav"
               role="menuitem"
               onClick={() => setOpen(false)}
             >
-              Se mina träd
+              <SettingsIcon />
+              <span>Kontoinställningar</span>
+            </Link>
+            <Link
+              to="/konto/trad"
+              className="auth-menu__nav"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+            >
+              <TreesIcon />
+              <span>Se mina träd</span>
             </Link>
             <button
               type="button"
-              className="auth-menu__action auth-menu__action--muted"
+              className="auth-menu__action auth-menu__action--muted auth-menu__action--logout"
               role="menuitem"
               onClick={async () => {
                 await signOut()
                 setOpen(false)
               }}
             >
-              Logga ut
+              <LogoutIcon />
+              <span>Logga ut</span>
             </button>
           </div>
         ) : null}
@@ -168,7 +231,7 @@ export function AuthMenu({ showLabel = false, avatarUrl: avatarOverride }: Props
           : 'Logga in'
 
   return (
-    <div className="auth-menu">
+    <div className="auth-menu" ref={rootRef}>
       <button
         type="button"
         className={triggerClass}
