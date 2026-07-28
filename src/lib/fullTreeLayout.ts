@@ -1,38 +1,27 @@
 import type { Node } from 'relatives-tree/lib/types'
+import type {
+  FullTreeLayout,
+  LayoutConnector,
+  LayoutOptions,
+  LayoutPerson,
+} from './layout/types'
 
-export type LayoutPerson = {
-  id: string
-  x: number
-  y: number
-  gender: Node['gender']
-}
+export type {
+  FullTreeLayout,
+  LayoutConnector,
+  LayoutPerson,
+} from './layout/types'
 
-export type LayoutConnector = {
-  x1: number
-  y1: number
-  x2: number
-  y2: number
-  kind: 'blood' | 'spouse'
-  /** Partner ids for interactive spouse edges (ordered left→right by x). */
-  spouseIds?: [string, string]
-}
-
-export type FullTreeLayout = {
-  people: LayoutPerson[]
-  connectors: LayoutConnector[]
-  width: number
-  height: number
-}
-
-type Options = {
-  nodeWidth: number
-  nodeHeight: number
-  coupleGap?: number
-  unitGap?: number
-  familyGap?: number
-  gapY?: number
-  padding?: number
-}
+type Options = Pick<
+  LayoutOptions,
+  | 'nodeWidth'
+  | 'nodeHeight'
+  | 'coupleGap'
+  | 'unitGap'
+  | 'familyGap'
+  | 'gapY'
+  | 'padding'
+>
 
 type Unit = { primary: string; members: string[] }
 
@@ -547,7 +536,71 @@ function buildGenerationFamilies(
       }),
     )
   }
-  return families
+
+  return attachNatalSiblingsToBridges(families, map)
+}
+
+/**
+ * Unmarried natal siblings share parents with someone who sits in a
+ * cross-family bridge. Park them in that bridge family on the matching
+ * parental side (before = left natal key, after = right natal key).
+ */
+function attachNatalSiblingsToBridges(
+  families: GenFamilies,
+  map: Map<string, Node>,
+): GenFamilies {
+  const out: GenFamilies = new Map()
+  const consumedNatal = new Set<string>()
+
+  const bridges = [...families.keys()].filter((k) => k.startsWith('bridge:'))
+  for (const bridgeKey of bridges) {
+    const natalKeys = bridgeKey.slice('bridge:'.length).split('~')
+    const leftNatal = natalKeys[0]
+    const rightNatal = natalKeys[natalKeys.length - 1]
+    const bridgeUnits = [...(families.get(bridgeKey) ?? [])]
+
+    for (const natalKey of natalKeys) {
+      if (consumedNatal.has(natalKey)) continue
+      const natalUnits = families.get(natalKey)
+      if (!natalUnits?.length) continue
+
+      const absorbed = natalUnits.filter(
+        (u) => parentKey(map.get(u.primary)!, map) === natalKey,
+      )
+      if (!absorbed.length) continue
+      consumedNatal.add(natalKey)
+
+      if (natalKey === leftNatal) {
+        bridgeUnits.unshift(...absorbed)
+      } else if (natalKey === rightNatal) {
+        bridgeUnits.push(...absorbed)
+      } else {
+        // Middle key (rare): keep next to a member with that parent set.
+        let insertAt = bridgeUnits.length
+        for (let i = bridgeUnits.length - 1; i >= 0; i--) {
+          if (
+            bridgeUnits[i]!.members.some(
+              (id) => parentKey(map.get(id)!, map) === natalKey,
+            )
+          ) {
+            insertAt = i + 1
+            break
+          }
+        }
+        bridgeUnits.splice(insertAt, 0, ...absorbed)
+      }
+    }
+
+    out.set(bridgeKey, bridgeUnits)
+  }
+
+  for (const [key, units] of families) {
+    if (key.startsWith('bridge:')) continue
+    if (consumedNatal.has(key)) continue
+    out.set(key, units)
+  }
+
+  return out
 }
 
 /**
@@ -1067,6 +1120,7 @@ export function layoutFullTree(
   }
 
   type ParentGroupGeom = {
+    parentIds: string[]
     parentMids: { cx: number; top: number; bottom: number }[]
     joinX: number
     joinY: number
@@ -1082,6 +1136,19 @@ export function layoutFullTree(
 
   const BAR_NEAR_GAP = 24
   const BAR_NUDGE = 8
+  /** Stronger vertical split when two parent brackets feed a married couple. */
+  const SPOUSE_BAR_NUDGE = 22
+
+  const spouseOf = new Map<string, Set<string>>()
+  for (const node of nodes) {
+    if (!positions.has(node.id)) continue
+    for (const spouse of node.spouses) {
+      if (!positions.has(spouse.id)) continue
+      const a = spouseOf.get(node.id) ?? new Set<string>()
+      a.add(spouse.id)
+      spouseOf.set(node.id, a)
+    }
+  }
 
   const groups: ParentGroupGeom[] = []
   for (const [key, childIds] of childrenByParents) {
@@ -1096,48 +1163,111 @@ export function layoutFullTree(
     const childMids = childIds
       .filter((id) => positions.has(id))
       .map((id) => ({ id, ...mid(id) }))
+      .sort((a, b) => a.cx - b.cx)
     if (!childMids.length) continue
 
-    const childXs = childMids.map((c) => c.cx)
-    const childMin = Math.min(...childXs)
-    const childMax = Math.max(...childXs)
-    const childCenter = (childMin + childMax) / 2
-    const barY = Math.min(...childMids.map((c) => c.top)) - gapY * 0.42
+    // Split far-apart children into clusters so a bridge sibling and a
+    // natal sibling don't share one mega sibling bar across the tree.
+    const clusterGap = nodeWidth + unitGap
+    const clustersOfChildren: (typeof childMids)[] = []
+    for (const child of childMids) {
+      const last = clustersOfChildren[clustersOfChildren.length - 1]
+      const prev = last?.[last.length - 1]
+      if (last && prev && child.cx - prev.cx <= clusterGap) {
+        last.push(child)
+      } else {
+        clustersOfChildren.push([child])
+      }
+    }
 
-    groups.push({
-      parentMids,
-      joinX,
-      joinY,
-      childMids,
-      childMin,
-      childMax,
-      childCenter,
-      barY,
-      barX1: childMin,
-      barX2: childMax,
-    })
+    for (const cluster of clustersOfChildren) {
+      const childXs = cluster.map((c) => c.cx)
+      const childMin = Math.min(...childXs)
+      const childMax = Math.max(...childXs)
+      const childCenter = (childMin + childMax) / 2
+      const barY = Math.min(...cluster.map((c) => c.top)) - gapY * 0.42
+
+      groups.push({
+        parentIds,
+        parentMids,
+        joinX,
+        joinY,
+        childMids: cluster,
+        childMin,
+        childMax,
+        childCenter,
+        barY,
+        barX1: childMin,
+        barX2: childMax,
+      })
+    }
   }
 
-  // Separate nearly-collinear sibling bars from different parent groups
-  const sortedGroups = [...groups].sort((a, b) => a.barX1 - b.barX1 || a.barX2 - b.barX2)
-  const clusters: ParentGroupGeom[][] = []
-  for (const g of sortedGroups) {
-    const last = clusters[clusters.length - 1]
-    const prev = last?.[last.length - 1]
-    const sameLane =
-      prev &&
-      Math.abs(prev.barY - g.barY) < 1 &&
-      g.barX1 <= prev.barX2 + BAR_NEAR_GAP
-    if (sameLane && last) last.push(g)
-    else clusters.push([g])
+  const groupsShareSpouseChildren = (a: ParentGroupGeom, b: ParentGroupGeom) => {
+    for (const child of a.childMids) {
+      const partners = spouseOf.get(child.id)
+      if (!partners) continue
+      for (const other of b.childMids) {
+        if (partners.has(other.id)) return true
+      }
+    }
+    return false
   }
 
-  for (const cluster of clusters) {
-    if (cluster.length < 2) continue
-    const midIndex = (cluster.length - 1) / 2
-    for (let i = 0; i < cluster.length; i++) {
-      const g = cluster[i]!
-      const offset = (i - midIndex) * BAR_NUDGE
+  // Separate overlapping / spouse-confusable brackets onto different Y lanes.
+  // Near bars (classic) and brackets onto a married couple (bridge) both need
+  // this — otherwise Harry→Inger and Anna→Örjan share one altitude and read
+  // as a single sibling bar under Harry+Linnea.
+  const sortedGroups = [...groups].sort(
+    (a, b) => a.barX1 - b.barX1 || a.barX2 - b.barX2,
+  )
+
+  const sameAltitude = (a: ParentGroupGeom, b: ParentGroupGeom) =>
+    Math.abs(a.barY - b.barY) < 1
+
+  const linked = (a: ParentGroupGeom, b: ParentGroupGeom) => {
+    if (!sameAltitude(a, b)) return false
+    if (b.barX1 <= a.barX2 + BAR_NEAR_GAP) return true
+    return groupsShareSpouseChildren(a, b)
+  }
+
+  // Connected components (not only consecutive neighbours) so a third
+  // bracket between two in-law sides can't block spouse detection.
+  const componentOf = sortedGroups.map((_, i) => i)
+  const find = (i: number): number =>
+    componentOf[i] === i ? i : (componentOf[i] = find(componentOf[i]!))
+  const unite = (i: number, j: number) => {
+    const ri = find(i)
+    const rj = find(j)
+    if (ri !== rj) componentOf[rj] = ri
+  }
+  for (let i = 0; i < sortedGroups.length; i++) {
+    for (let j = i + 1; j < sortedGroups.length; j++) {
+      if (linked(sortedGroups[i]!, sortedGroups[j]!)) unite(i, j)
+    }
+  }
+
+  const components = new Map<number, number[]>()
+  for (let i = 0; i < sortedGroups.length; i++) {
+    const root = find(i)
+    const list = components.get(root) ?? []
+    list.push(i)
+    components.set(root, list)
+  }
+
+  for (const indices of components.values()) {
+    if (indices.length < 2) continue
+    const members = indices.map((i) => sortedGroups[i]!)
+    const spouseSplit = members.some((a, ai) =>
+      members.some((b, bi) => ai < bi && groupsShareSpouseChildren(a, b)),
+    )
+    const nudge = spouseSplit ? SPOUSE_BAR_NUDGE : BAR_NUDGE
+    // Keep left-to-right order when assigning lanes.
+    members.sort((a, b) => a.barX1 - b.barX1 || a.barX2 - b.barX2)
+    const midIndex = (members.length - 1) / 2
+    for (let i = 0; i < members.length; i++) {
+      const g = members[i]!
+      const offset = (i - midIndex) * nudge
       const parentBottom = Math.max(...g.parentMids.map((p) => p.bottom))
       const childTop = Math.min(...g.childMids.map((c) => c.top))
       const nextJoin = g.joinY + offset * 0.5
@@ -1155,6 +1285,9 @@ export function layoutFullTree(
   }
 
   for (const g of groups) {
+    const childIds = g.childMids.map((c) => c.id)
+    const bloodLink = { childIds, parentIds: g.parentIds }
+
     for (const p of g.parentMids) {
       connectors.push({
         x1: p.cx,
@@ -1162,6 +1295,7 @@ export function layoutFullTree(
         x2: p.cx,
         y2: g.joinY,
         kind: 'blood',
+        bloodLink,
       })
     }
     if (g.parentMids.length > 1) {
@@ -1172,6 +1306,7 @@ export function layoutFullTree(
         x2: Math.max(...xs),
         y2: g.joinY,
         kind: 'blood',
+        bloodLink,
       })
     }
 
@@ -1182,6 +1317,7 @@ export function layoutFullTree(
         x2: g.childCenter,
         y2: g.joinY,
         kind: 'blood',
+        bloodLink,
       })
     }
     connectors.push({
@@ -1190,6 +1326,7 @@ export function layoutFullTree(
       x2: g.childCenter,
       y2: g.barY,
       kind: 'blood',
+      bloodLink,
     })
 
     if (g.childMids.length > 1) {
@@ -1199,6 +1336,7 @@ export function layoutFullTree(
         x2: g.childMax,
         y2: g.barY,
         kind: 'blood',
+        bloodLink,
       })
     }
 
@@ -1209,6 +1347,7 @@ export function layoutFullTree(
         x2: child.cx,
         y2: child.top,
         kind: 'blood',
+        bloodLink,
       })
     }
   }

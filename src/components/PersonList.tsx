@@ -19,7 +19,17 @@ export function PersonList({ store, focusId, onSelect, onClose }: Props) {
     return Object.values(store.profiles)
       .filter((p) => {
         if (!q) return true
-        const hay = [p.name, p.nickname, p.birthYear, p.occupation, p.birthPlace]
+        const hay = [
+          p.name,
+          p.nickname,
+          p.maidenName,
+          p.alsoKnownAs,
+          p.birthYear,
+          p.occupation,
+          p.birthPlace,
+          p.birthCountry,
+          p.religion,
+        ]
           .filter(Boolean)
           .join(' ')
           .toLowerCase()
@@ -36,8 +46,13 @@ export function PersonList({ store, focusId, onSelect, onClose }: Props) {
             <p className="person-list__eyebrow">Översikt</p>
             <h2>Personer</h2>
           </div>
-          <button type="button" className="person-list__close" onClick={onClose}>
-            Stäng
+          <button
+            type="button"
+            className="person-list__close"
+            aria-label="Stäng"
+            onClick={onClose}
+          >
+            ×
           </button>
         </header>
 

@@ -93,4 +93,6 @@
   transform-origin: 0 0;
   width: max-content;
   height: max-content;
+  will-change: transform;
+  contain: layout style;
 }

@@ -34,6 +34,10 @@ function clampScale(value: number) {
   return Math.min(MAX_SCALE, Math.max(MIN_SCALE, value))
 }
 
+/**
+ * Pan/zoom viewport that updates the canvas transform imperatively during
+ * interaction so the heavy tree children are not re-rendered every frame.
+ */
 export function PinchZoomPan({
   children,
   centerRequest,
@@ -44,11 +48,13 @@ export function PinchZoomPan({
   minimapInsetRight = 0,
 }: Props) {
   const viewportRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLDivElement>(null)
+  const levelRef = useRef<HTMLSpanElement>(null)
   const scaleRef = useRef(0.7)
   const offsetRef = useRef({ x: 48, y: 48 })
-  const [scale, setScale] = useState(0.7)
-  const [offset, setOffset] = useState({ x: 48, y: 48 })
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
+  // Throttled mirror for minimap only — not used for the canvas transform.
+  const [view, setView] = useState({ scale: 0.7, offset: { x: 48, y: 48 } })
   const drag = useRef<{
     x: number
     y: number
@@ -58,9 +64,40 @@ export function PinchZoomPan({
   } | null>(null)
   const onPointerWorldMoveRef = useRef(onPointerWorldMove)
   onPointerWorldMoveRef.current = onPointerWorldMove
+  const minimapTimer = useRef<number | null>(null)
+  const interactingRef = useRef(false)
 
-  scaleRef.current = scale
-  offsetRef.current = offset
+  const paintCanvas = useCallback(() => {
+    const canvas = canvasRef.current
+    if (canvas) {
+      const { x, y } = offsetRef.current
+      const s = scaleRef.current
+      canvas.style.transform = `translate(${x}px, ${y}px) scale(${s})`
+    }
+    if (levelRef.current) {
+      levelRef.current.textContent = `${Math.round(scaleRef.current * 100)}%`
+    }
+  }, [])
+
+  const syncMinimap = useCallback((immediate = false) => {
+    const flush = () => {
+      minimapTimer.current = null
+      setView({
+        scale: scaleRef.current,
+        offset: { ...offsetRef.current },
+      })
+    }
+    if (minimapTimer.current != null) {
+      window.clearTimeout(minimapTimer.current)
+      minimapTimer.current = null
+    }
+    if (immediate) {
+      flush()
+      return
+    }
+    // Defer React state (minimap) so zoom/pan never re-renders the tree mid-gesture.
+    minimapTimer.current = window.setTimeout(flush, 120)
+  }, [])
 
   const toWorld = (clientX: number, clientY: number) => {
     const el = viewportRef.current
@@ -74,25 +111,30 @@ export function PinchZoomPan({
     }
   }
 
-  const applyScale = (nextScale: number, originX: number, originY: number) => {
-    const prev = scaleRef.current
-    const next = clampScale(nextScale)
-    if (next === prev) return
+  const applyScale = useCallback(
+    (nextScale: number, originX: number, originY: number) => {
+      const prev = scaleRef.current
+      const next = clampScale(nextScale)
+      if (next === prev) return
 
-    const ox = offsetRef.current.x
-    const oy = offsetRef.current.y
-    const worldX = (originX - ox) / prev
-    const worldY = (originY - oy) / prev
-    const nextOffset = {
-      x: originX - worldX * next,
-      y: originY - worldY * next,
-    }
+      const ox = offsetRef.current.x
+      const oy = offsetRef.current.y
+      const worldX = (originX - ox) / prev
+      const worldY = (originY - oy) / prev
+      offsetRef.current = {
+        x: originX - worldX * next,
+        y: originY - worldY * next,
+      }
+      scaleRef.current = next
+      paintCanvas()
+      syncMinimap()
+    },
+    [paintCanvas, syncMinimap],
+  )
 
-    scaleRef.current = next
-    offsetRef.current = nextOffset
-    setScale(next)
-    setOffset(nextOffset)
-  }
+  useEffect(() => {
+    paintCanvas()
+  }, [paintCanvas])
 
   useEffect(() => {
     const el = viewportRef.current
@@ -114,28 +156,34 @@ export function PinchZoomPan({
 
     const onWheel = (event: WheelEvent) => {
       event.preventDefault()
+      interactingRef.current = true
       const rect = el.getBoundingClientRect()
       const originX = event.clientX - rect.left
       const originY = event.clientY - rect.top
-      const delta = event.deltaY > 0 ? -0.08 : 0.08
-      applyScale(scaleRef.current + delta, originX, originY)
+
+      // Smooth multiplicative zoom (trackpads send many small deltas).
+      let dy = event.deltaY
+      if (event.deltaMode === 1) dy *= 16
+      else if (event.deltaMode === 2) dy *= rect.height
+      const factor = Math.exp(-dy * 0.0034)
+      applyScale(scaleRef.current * factor, originX, originY)
     }
 
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
-  }, [])
+  }, [applyScale])
 
   useEffect(() => {
     if (!centerRequest || !viewportRef.current) return
     const rect = viewportRef.current.getBoundingClientRect()
     const s = scaleRef.current
-    const nextOffset = {
+    offsetRef.current = {
       x: rect.width / 2 - centerRequest.x * s,
       y: rect.height / 2 - centerRequest.y * s,
     }
-    offsetRef.current = nextOffset
-    setOffset(nextOffset)
-  }, [centerRequest])
+    paintCanvas()
+    syncMinimap(true)
+  }, [centerRequest, paintCanvas, syncMinimap])
 
   useEffect(() => {
     if (!fitRequest || !viewportRef.current) return
@@ -150,15 +198,14 @@ export function PinchZoomPan({
         ),
       ),
     )
-    const nextOffset = {
+    scaleRef.current = nextScale
+    offsetRef.current = {
       x: (rect.width - fitRequest.width * nextScale) / 2,
       y: (rect.height - fitRequest.height * nextScale) / 2,
     }
-    scaleRef.current = nextScale
-    offsetRef.current = nextOffset
-    setScale(nextScale)
-    setOffset(nextOffset)
-  }, [fitRequest])
+    paintCanvas()
+    syncMinimap(true)
+  }, [fitRequest, paintCanvas, syncMinimap])
 
   useEffect(() => {
     const el = viewportRef.current
@@ -180,28 +227,58 @@ export function PinchZoomPan({
     }
   }, [])
 
+  useEffect(() => {
+    return () => {
+      if (minimapTimer.current != null) window.clearTimeout(minimapTimer.current)
+    }
+  }, [])
+
   const zoomBy = (delta: number) => {
     const el = viewportRef.current
     if (!el) {
       applyScale(scaleRef.current + delta, 0, 0)
+      syncMinimap(true)
       return
     }
     const rect = el.getBoundingClientRect()
     applyScale(scaleRef.current + delta, rect.width / 2, rect.height / 2)
+    syncMinimap(true)
   }
 
-  const navigateToWorld = useCallback((worldX: number, worldY: number) => {
-    const el = viewportRef.current
-    if (!el) return
-    const rect = el.getBoundingClientRect()
-    const s = scaleRef.current
-    const nextOffset = {
-      x: rect.width / 2 - worldX * s,
-      y: rect.height / 2 - worldY * s,
+  const fitToWorld = () => {
+    if (!minimap || !viewportRef.current) return
+    const rect = viewportRef.current.getBoundingClientRect()
+    const pad = 48
+    const nextScale = clampScale(
+      Math.min(
+        (rect.width - pad) / Math.max(minimap.width, 1),
+        (rect.height - pad) / Math.max(minimap.height, 1),
+      ),
+    )
+    scaleRef.current = nextScale
+    offsetRef.current = {
+      x: (rect.width - minimap.width * nextScale) / 2,
+      y: (rect.height - minimap.height * nextScale) / 2,
     }
-    offsetRef.current = nextOffset
-    setOffset(nextOffset)
-  }, [])
+    paintCanvas()
+    syncMinimap(true)
+  }
+
+  const navigateToWorld = useCallback(
+    (worldX: number, worldY: number) => {
+      const el = viewportRef.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      const s = scaleRef.current
+      offsetRef.current = {
+        x: rect.width / 2 - worldX * s,
+        y: rect.height / 2 - worldY * s,
+      }
+      paintCanvas()
+      syncMinimap(true)
+    },
+    [paintCanvas, syncMinimap],
+  )
 
   return (
     <div
@@ -211,7 +288,7 @@ export function PinchZoomPan({
         const target = e.target as HTMLElement
         if (
           target.closest(
-            '.person-card-slot, .pan-zoom__controls, .spouse-edge, .tree-minimap',
+            '.person-card-slot, .pan-zoom__controls, .spouse-edge, .blood-edge, .tree-edge, .tree-minimap',
           )
         ) {
           return
@@ -219,10 +296,11 @@ export function PinchZoomPan({
         drag.current = {
           x: e.clientX,
           y: e.clientY,
-          ox: offset.x,
-          oy: offset.y,
+          ox: offsetRef.current.x,
+          oy: offsetRef.current.y,
           moved: false,
         }
+        interactingRef.current = true
         ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
       }}
       onPointerMove={(e) => {
@@ -235,12 +313,12 @@ export function PinchZoomPan({
         if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
           drag.current.moved = true
         }
-        const nextOffset = {
+        offsetRef.current = {
           x: drag.current.ox + dx,
           y: drag.current.oy + dy,
         }
-        offsetRef.current = nextOffset
-        setOffset(nextOffset)
+        paintCanvas()
+        syncMinimap()
       }}
       onPointerLeave={() => {
         onPointerWorldMoveRef.current?.(null)
@@ -250,6 +328,8 @@ export function PinchZoomPan({
           onBackgroundClick?.()
         }
         drag.current = null
+        interactingRef.current = false
+        syncMinimap(true)
       }}
     >
       <div className="pan-zoom__controls">
@@ -259,7 +339,7 @@ export function PinchZoomPan({
           title="Zooma in"
           onClick={(e) => {
             e.stopPropagation()
-            zoomBy(0.12)
+            zoomBy(0.2)
           }}
           onPointerDown={(e) => e.stopPropagation()}
         >
@@ -271,30 +351,50 @@ export function PinchZoomPan({
           title="Zooma ut"
           onClick={(e) => {
             e.stopPropagation()
-            zoomBy(-0.12)
+            zoomBy(-0.2)
           }}
           onPointerDown={(e) => e.stopPropagation()}
         >
           <span aria-hidden>−</span>
         </button>
-        <span className="pan-zoom__level">{Math.round(scale * 100)}%</span>
+        {minimap ? (
+          <button
+            type="button"
+            className="pan-zoom__fit"
+            aria-label="Passa in trädet"
+            title="Passa in trädet"
+            onClick={(e) => {
+              e.stopPropagation()
+              fitToWorld()
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden>
+              <path
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4"
+              />
+            </svg>
+          </button>
+        ) : null}
+        <span ref={levelRef} className="pan-zoom__level">
+          {Math.round(view.scale * 100)}%
+        </span>
       </div>
       {minimap ? (
         <TreeMinimap
           world={minimap}
-          scale={scale}
-          offset={offset}
+          scale={view.scale}
+          offset={view.offset}
           viewportSize={viewportSize}
           onNavigate={navigateToWorld}
           insetRight={minimapInsetRight}
         />
       ) : null}
-      <div
-        className="pan-zoom__canvas"
-        style={{
-          transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
-        }}
-      >
+      <div ref={canvasRef} className="pan-zoom__canvas">
         {children}
       </div>
     </div>

@@ -3,6 +3,18 @@
   width: min(240px, 42vw);
 }
 
+@media (max-width: 720px) {
+  .search-bar {
+    width: min(160px, 36vw);
+    min-width: 0;
+  }
+
+  .search-bar__results {
+    min-width: 0;
+    width: max(100%, 220px);
+  }
+}
+
 .search-bar input {
   width: 100%;
   padding: 0.55rem 0.75rem;

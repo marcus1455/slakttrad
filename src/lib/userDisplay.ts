@@ -47,6 +47,14 @@ export function personProfileForUser(
   const linked = linkedPersonIdFromUser(user)
   if (linked && profiles[linked]) return profiles[linked]!
 
+  const byClaim = Object.values(profiles).find((p) => p.claimedByUserId === user.id)
+  if (byClaim) return byClaim
+
+  const meta = user.user_metadata ?? {}
+  const metaLinked =
+    typeof meta.linked_person_id === 'string' ? meta.linked_person_id.trim() : ''
+  if (metaLinked && profiles[metaLinked]) return profiles[metaLinked]!
+
   const email = user.email?.trim().toLowerCase()
   if (email) {
     const byEmail = Object.values(profiles).find(

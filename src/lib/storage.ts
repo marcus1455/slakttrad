@@ -1,7 +1,14 @@
 import type { Node } from 'relatives-tree/lib/types'
 import { createBlankFamily } from '../data/blank'
 import { SEED_FAMILY } from '../data/seed'
-import type { FamilyStore, Gender, LoadedTree, PersonProfile, TreeMeta } from '../types'
+import type {
+  FamilyStore,
+  Gender,
+  LoadedTree,
+  PersonProfile,
+  TreeCheckpoint,
+  TreeMeta,
+} from '../types'
 import { normalizeProfileNicknames } from './personName'
 import { DEFAULT_TREE_SLUG, supabase } from './supabase'
 import { avatarUrlFromUser, displayNameFromUser } from './userDisplay'
@@ -15,6 +22,7 @@ type FamilyTreeRow = {
   nodes: Node[]
   share_token: string | null
   owner_id?: string | null
+  checkpoints?: TreeCheckpoint[] | null
 }
 
 export type TreeAccessRole = 'owner' | 'editor' | 'viewer'
@@ -32,6 +40,13 @@ function newSlug() {
   return `trad-${crypto.randomUUID().replaceAll('-', '').slice(0, 10)}`
 }
 
+function normalizeCheckpoints(
+  value: TreeCheckpoint[] | null | undefined,
+): TreeCheckpoint[] | undefined {
+  if (!Array.isArray(value) || value.length === 0) return undefined
+  return value
+}
+
 function rowToLoaded(row: FamilyTreeRow): LoadedTree {
   if (!row.share_token) {
     throw new Error('Trädet saknar delningstoken')
@@ -41,6 +56,7 @@ function rowToLoaded(row: FamilyTreeRow): LoadedTree {
       rootId: row.root_id,
       profiles: normalizeProfileNicknames(row.profiles ?? {}),
       nodes: row.nodes,
+      checkpoints: normalizeCheckpoints(row.checkpoints),
     },
     meta: {
       id: row.id,
@@ -58,7 +74,7 @@ async function ensureShareToken(row: FamilyTreeRow): Promise<FamilyTreeRow> {
     .from('family_trees')
     .update({ share_token: token })
     .eq('id', row.id)
-    .select('id, slug, name, root_id, profiles, nodes, share_token, owner_id')
+    .select('id, slug, name, root_id, profiles, nodes, share_token, owner_id, checkpoints')
     .single()
   if (error) throw error
   return data as FamilyTreeRow
@@ -67,7 +83,7 @@ async function ensureShareToken(row: FamilyTreeRow): Promise<FamilyTreeRow> {
 export async function loadFamilyBySlug(slug: string): Promise<LoadedTree> {
   const { data, error } = await supabase
     .from('family_trees')
-    .select('id, slug, name, root_id, profiles, nodes, share_token, owner_id')
+    .select('id, slug, name, root_id, profiles, nodes, share_token, owner_id, checkpoints')
     .eq('slug', slug)
     .maybeSingle()
 
@@ -149,10 +165,11 @@ export async function createFamilyFromStore(
       root_id: store.rootId,
       profiles: store.profiles,
       nodes: store.nodes,
+      checkpoints: store.checkpoints ?? [],
       share_token: token,
       owner_id: user.id,
     })
-    .select('id, slug, name, root_id, profiles, nodes, share_token, owner_id')
+    .select('id, slug, name, root_id, profiles, nodes, share_token, owner_id, checkpoints')
     .single()
 
   if (error) throw error
@@ -345,6 +362,7 @@ export async function saveFamily(
       root_id: store.rootId,
       profiles: store.profiles,
       nodes: store.nodes,
+      checkpoints: store.checkpoints ?? [],
       updated_at: new Date().toISOString(),
     })
     .eq('slug', slug)
@@ -364,12 +382,13 @@ export async function seedFamily(slug: string): Promise<LoadedTree> {
         root_id: seed.rootId,
         profiles: seed.profiles,
         nodes: seed.nodes,
+        checkpoints: [],
         share_token: token,
         owner_id: null,
       },
       { onConflict: 'slug' },
     )
-    .select('id, slug, name, root_id, profiles, nodes, share_token, owner_id')
+    .select('id, slug, name, root_id, profiles, nodes, share_token, owner_id, checkpoints')
     .single()
 
   if (error) throw error

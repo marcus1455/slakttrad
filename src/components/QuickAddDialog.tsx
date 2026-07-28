@@ -1,6 +1,13 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type { FamilyStore, Gender } from '../types'
-import { addChild, addParent, addPartner } from '../lib/relations'
+import {
+  addChild,
+  addParent,
+  addPartner,
+  type ParentChildRelType,
+  type SpouseRelType,
+} from '../lib/relations'
+import { useFocusTrap } from '../lib/useFocusTrap'
 import './QuickAddDialog.css'
 
 export type QuickAddKind = 'partner' | 'child' | 'parent'
@@ -33,9 +40,11 @@ export function QuickAddDialog({
 }: Props) {
   const host = store.profiles[personId]
   const coParent = coParentId ? store.profiles[coParentId] : undefined
+  const cardRef = useRef<HTMLFormElement>(null)
   const [name, setName] = useState('')
-  const [nickname, setNickname] = useState('')
   const [birthYear, setBirthYear] = useState('')
+  const [spouseType, setSpouseType] = useState<SpouseRelType>('married')
+  const [linkType, setLinkType] = useState<ParentChildRelType>('blood')
   const [gender, setGender] = useState<Gender>(() => {
     if (kind === 'partner') {
       return host?.gender === 'male' ? 'female' : 'male'
@@ -55,6 +64,8 @@ export function QuickAddDialog({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  useFocusTrap(true, cardRef)
+
   if (!host) return null
 
   const onSubmit = (e: FormEvent) => {
@@ -64,16 +75,24 @@ export function QuickAddDialog({
       const before = new Set(Object.keys(store.profiles))
       let next = store
       if (kind === 'partner') {
-        next = addPartner(store, personId, { name, nickname, birthYear, gender })
+        next = addPartner(
+          store,
+          personId,
+          { name, birthYear, gender },
+          { spouseType },
+        )
       } else if (kind === 'child') {
         next = addChild(
           store,
           personId,
-          { name, nickname, birthYear, gender },
-          coParentId ? { coParentId } : undefined,
+          { name, birthYear, gender },
+          {
+            ...(coParentId ? { coParentId } : {}),
+            linkType,
+          },
         )
       } else {
-        next = addParent(store, personId, { name, nickname, birthYear, gender })
+        next = addParent(store, personId, { name, birthYear, gender }, { linkType })
       }
       const createdId = Object.keys(next.profiles).find((id) => !before.has(id))
       onChange(next)
@@ -91,10 +110,20 @@ export function QuickAddDialog({
 
   return (
     <div className="quick-add" role="dialog" aria-modal="true">
-      <form className="quick-add__card" onSubmit={onSubmit}>
-        <header>
-          <p>Lägg till</p>
-          <h3>{childTitle}</h3>
+      <form className="quick-add__card" ref={cardRef} onSubmit={onSubmit}>
+        <header className="quick-add__header">
+          <div>
+            <p>Lägg till</p>
+            <h3>{childTitle}</h3>
+          </div>
+          <button
+            type="button"
+            className="quick-add__close"
+            aria-label="Stäng"
+            onClick={onClose}
+          >
+            ×
+          </button>
         </header>
         <label>
           Namn
@@ -103,14 +132,6 @@ export function QuickAddDialog({
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-          />
-        </label>
-        <label>
-          Smeknamn
-          <input
-            value={nickname}
-            placeholder="Tilltalsnamn…"
-            onChange={(e) => setNickname(e.target.value)}
           />
         </label>
         <label>
@@ -127,11 +148,33 @@ export function QuickAddDialog({
             <option value="male">Man</option>
           </select>
         </label>
+        {kind === 'partner' ? (
+          <label>
+            Relation
+            <select
+              value={spouseType}
+              onChange={(e) => setSpouseType(e.target.value as SpouseRelType)}
+            >
+              <option value="married">Gift / partner</option>
+              <option value="divorced">Frånskild</option>
+            </select>
+          </label>
+        ) : null}
+        {kind === 'child' || kind === 'parent' ? (
+          <label>
+            Band
+            <select
+              value={linkType}
+              onChange={(e) => setLinkType(e.target.value as ParentChildRelType)}
+            >
+              <option value="blood">Blodsband</option>
+              <option value="adopted">Adoption</option>
+              <option value="half">Halv</option>
+            </select>
+          </label>
+        ) : null}
         {error ? <p className="quick-add__error">{error}</p> : null}
         <div className="quick-add__actions">
-          <button type="button" className="ghost" onClick={onClose}>
-            Avbryt
-          </button>
           <button type="submit">Lägg till</button>
         </div>
       </form>

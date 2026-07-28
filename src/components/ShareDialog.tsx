@@ -1,20 +1,26 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useAuth } from '../lib/auth'
+import { useConfirm } from '../lib/confirm'
 import {
   inviteTreeCollaborator,
   listTreeCollaborators,
   removeTreeCollaborator,
+  rotateShareToken,
   setTreeCollaboratorRole,
   type CollaboratorRole,
   type TreeCollaborator,
 } from '../lib/storage'
+import { useFocusTrap } from '../lib/useFocusTrap'
+import type { TreeMeta } from '../types'
 import './ShareDialog.css'
 
 type Props = {
   url: string
   treeId: string
+  treeSlug: string
   /** True when the signed-in user may invite/remove collaborators. */
   canInvite: boolean
+  onRotated: (meta: TreeMeta) => void
   onClose: () => void
 }
 
@@ -23,14 +29,25 @@ const ROLE_LABELS: Record<CollaboratorRole, string> = {
   viewer: 'Endast visning',
 }
 
-export function ShareDialog({ url, treeId, canInvite, onClose }: Props) {
+export function ShareDialog({
+  url,
+  treeId,
+  treeSlug,
+  canInvite,
+  onRotated,
+  onClose,
+}: Props) {
   const { user } = useAuth()
+  const confirm = useConfirm()
+  const cardRef = useRef<HTMLDivElement>(null)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState<CollaboratorRole>('editor')
   const [inviteBusy, setInviteBusy] = useState(false)
   const [inviteOk, setInviteOk] = useState<string | null>(null)
+  const [rotateBusy, setRotateBusy] = useState(false)
+  const [rotateOk, setRotateOk] = useState<string | null>(null)
   const [collaborators, setCollaborators] = useState<TreeCollaborator[]>([])
   const [collabLoading, setCollabLoading] = useState(false)
 
@@ -63,6 +80,8 @@ export function ShareDialog({ url, treeId, canInvite, onClose }: Props) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
+
+  useFocusTrap(true, cardRef)
 
   const copy = async () => {
     try {
@@ -115,12 +134,45 @@ export function ShareDialog({ url, treeId, canInvite, onClose }: Props) {
     }
   }
 
+  const revokeLink = async () => {
+    const ok = await confirm({
+      title: 'Återkalla delningslänk?',
+      message:
+        'En ny länk skapas. Den gamla länken slutar fungera för alla som har den.',
+      confirmLabel: 'Återkalla',
+      danger: true,
+    })
+    if (!ok) return
+    setRotateBusy(true)
+    setRotateOk(null)
+    setError(null)
+    try {
+      const next = await rotateShareToken(treeSlug)
+      onRotated(next)
+      setRotateOk('Ny länk skapad — gamla länken fungerar inte längre.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Kunde inte återkalla länken')
+    } finally {
+      setRotateBusy(false)
+    }
+  }
+
   return (
     <div className="share-dialog" role="dialog" aria-modal="true" aria-label="Dela träd">
-      <div className="share-dialog__card">
-        <header>
-          <p>Dela</p>
-          <h3>Trädåtkomst</h3>
+      <div className="share-dialog__card" ref={cardRef}>
+        <header className="share-dialog__header">
+          <div>
+            <p>Dela</p>
+            <h3>Trädåtkomst</h3>
+          </div>
+          <button
+            type="button"
+            className="share-dialog__close"
+            aria-label="Stäng"
+            onClick={onClose}
+          >
+            ×
+          </button>
         </header>
 
         <section className="share-dialog__section">
@@ -138,6 +190,16 @@ export function ShareDialog({ url, treeId, canInvite, onClose }: Props) {
               </button>
             </div>
           </label>
+
+          <button
+            type="button"
+            className="share-dialog__quiet"
+            disabled={rotateBusy}
+            onClick={() => void revokeLink()}
+          >
+            {rotateBusy ? 'Återkallar…' : 'Återkalla länk'}
+          </button>
+          {rotateOk ? <p className="share-dialog__ok">{rotateOk}</p> : null}
         </section>
 
         {canInvite ? (
@@ -217,12 +279,6 @@ export function ShareDialog({ url, treeId, canInvite, onClose }: Props) {
             Logga in som ägare för att bjuda in personer till trädet.
           </p>
         )}
-
-        <div className="share-dialog__actions">
-          <button type="button" className="ghost" onClick={onClose}>
-            Stäng
-          </button>
-        </div>
 
         {error ? <p className="share-dialog__error">{error}</p> : null}
       </div>

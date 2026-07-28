@@ -1,0 +1,199 @@
+.history-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(20, 28, 22, 0.42);
+}
+
+.history-dialog__card {
+  width: min(520px, 100%);
+  max-height: min(80vh, 640px);
+  overflow: auto;
+  padding: 1.15rem 1.2rem 1.25rem;
+  border-radius: 16px;
+  background: #fbfdf9;
+  border: 1px solid rgba(28, 36, 28, 0.1);
+  box-shadow: 0 24px 60px rgba(20, 28, 22, 0.22);
+}
+
+.history-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.history-dialog__header p {
+  margin: 0;
+  font-family: 'Figtree', system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #5d6b5f;
+}
+
+.history-dialog__header h3 {
+  margin: 0.15rem 0 0;
+  font-family: var(--font-display, Georgia, 'Times New Roman', serif);
+  font-size: 1.35rem;
+  color: #1c241c;
+}
+
+.history-dialog__close {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  margin: -0.25rem -0.35rem 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.45rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.history-dialog__close:hover {
+  background: color-mix(in srgb, var(--muted) 10%, transparent);
+  color: var(--ink);
+}
+
+.history-dialog__card .ghost {
+  padding: 0.45rem 0.7rem;
+  border: 1px solid rgba(28, 36, 28, 0.14);
+  border-radius: 8px;
+  background: #fff;
+  color: #1c241c;
+  font-family: 'Figtree', system-ui, sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.history-dialog__form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.55rem;
+  align-items: end;
+  margin-bottom: 1rem;
+}
+
+.history-dialog__form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-family: 'Figtree', system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #5d6b5f;
+}
+
+.history-dialog__form input {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid rgba(28, 36, 28, 0.14);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 0.9rem;
+  color: #1c241c;
+}
+
+.history-dialog__form button[type='submit'] {
+  padding: 0.7rem 0.9rem;
+  border: 1px solid #2f5d50;
+  border-radius: 10px;
+  background: #2f5d50;
+  color: #f7faf7;
+  font-family: 'Figtree', system-ui, sans-serif;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.history-dialog__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.history-dialog__empty {
+  margin: 0;
+  color: #5d6b5f;
+  font-family: 'Figtree', system-ui, sans-serif;
+  font-size: 0.88rem;
+}
+
+.history-dialog__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.8rem;
+  border: 1px solid rgba(28, 36, 28, 0.1);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.history-dialog__row strong {
+  display: block;
+  font-family: 'Figtree', system-ui, sans-serif;
+  font-size: 0.92rem;
+  color: #1c241c;
+}
+
+.history-dialog__row span {
+  display: block;
+  margin-top: 0.15rem;
+  font-family: 'Figtree', system-ui, sans-serif;
+  font-size: 0.76rem;
+  color: #5d6b5f;
+}
+
+.history-dialog__row-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.history-dialog__row-actions button {
+  padding: 0.45rem 0.65rem;
+  border: 1px solid #2f5d50;
+  border-radius: 8px;
+  background: #2f5d50;
+  color: #f7faf7;
+  font-family: 'Figtree', system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.history-dialog__row-actions .ghost {
+  border-color: rgba(28, 36, 28, 0.14);
+  background: #fff;
+  color: #1c241c;
+}
+
+.history-dialog__error {
+  margin: 0 0 0.75rem;
+  color: #8b2e2e;
+  font-family: 'Figtree', system-ui, sans-serif;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 560px) {
+  .history-dialog__form {
+    grid-template-columns: 1fr;
+  }
+
+  .history-dialog__row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

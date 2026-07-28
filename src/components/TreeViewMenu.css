@@ -27,7 +27,10 @@
 }
 
 .tree-view-menu__panel button {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
   width: 100%;
   padding: 0.55rem 0.65rem;
   border: none;
@@ -41,6 +44,17 @@
   cursor: pointer;
 }
 
+.tree-view-menu__label {
+  display: block;
+}
+
+.tree-view-menu__hint {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
 .tree-view-menu__panel button:hover {
   background: var(--teal-soft);
 }
@@ -48,6 +62,10 @@
 .tree-view-menu__panel button.is-active {
   background: rgba(47, 93, 80, 0.16);
   color: var(--teal);
+}
+
+.tree-view-menu__panel button.is-active .tree-view-menu__hint {
+  color: color-mix(in srgb, var(--teal) 75%, var(--muted));
 }
 
 .app__tool--active {

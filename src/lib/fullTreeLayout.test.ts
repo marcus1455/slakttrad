@@ -546,4 +546,116 @@ describe('layoutFullTree', () => {
     expect(ingerCx).toBeGreaterThan(coupleLeft - 20)
     expect(ingerCx).toBeLessThan(coupleRight + 20)
   })
+
+  it('keeps a natal sibling beside a bridged sibling without a mega sibling bar', () => {
+    const nodes = [
+      node({
+        id: 'harry',
+        gender: 'male',
+        spouses: [{ id: 'linnea', type: 'married' }],
+        children: [
+          { id: 'inger', type: 'blood' },
+          { id: 'goran', type: 'blood' },
+        ],
+      }),
+      node({
+        id: 'linnea',
+        gender: 'female',
+        spouses: [{ id: 'harry', type: 'married' }],
+        children: [
+          { id: 'inger', type: 'blood' },
+          { id: 'goran', type: 'blood' },
+        ],
+      }),
+      node({
+        id: 'orjan',
+        gender: 'male',
+        parents: [
+          { id: 'anna', type: 'blood' },
+          { id: 'david', type: 'blood' },
+        ],
+        spouses: [{ id: 'inger', type: 'married' }],
+        children: [{ id: 'mikael', type: 'blood' }],
+      }),
+      node({
+        id: 'anna',
+        gender: 'female',
+        spouses: [{ id: 'david', type: 'married' }],
+        children: [{ id: 'orjan', type: 'blood' }],
+      }),
+      node({
+        id: 'david',
+        gender: 'male',
+        spouses: [{ id: 'anna', type: 'married' }],
+        children: [{ id: 'orjan', type: 'blood' }],
+      }),
+      node({
+        id: 'inger',
+        gender: 'female',
+        parents: [
+          { id: 'harry', type: 'blood' },
+          { id: 'linnea', type: 'blood' },
+        ],
+        spouses: [{ id: 'orjan', type: 'married' }],
+        siblings: [{ id: 'goran', type: 'blood' }],
+        children: [{ id: 'mikael', type: 'blood' }],
+      }),
+      node({
+        id: 'goran',
+        gender: 'male',
+        parents: [
+          { id: 'harry', type: 'blood' },
+          { id: 'linnea', type: 'blood' },
+        ],
+        siblings: [{ id: 'inger', type: 'blood' }],
+      }),
+      node({
+        id: 'mikael',
+        gender: 'male',
+        parents: [
+          { id: 'orjan', type: 'blood' },
+          { id: 'inger', type: 'blood' },
+        ],
+      }),
+    ]
+
+    const before = layoutFullTree(
+      nodes.filter((n) => n.id !== 'goran').map((n) => {
+        if (n.id === 'harry' || n.id === 'linnea') {
+          return {
+            ...n,
+            children: n.children.filter((c) => c.id !== 'goran'),
+          }
+        }
+        if (n.id === 'inger') {
+          return { ...n, siblings: [] }
+        }
+        return n
+      }),
+      OPTS,
+    )
+    const layout = layoutFullTree(nodes, OPTS)
+    const p = pos(layout)
+
+    // Göran sits on the same row as Inger and close to the Inger–Örjan unit.
+    expect(p.goran!.y).toBe(p.inger!.y)
+    const gap = Math.abs(p.goran!.x - p.inger!.x)
+    expect(gap).toBeLessThan(OPTS.nodeWidth * 2.5)
+
+    // Sibling bar between Inger and Göran must stay short.
+    const bar = layout.connectors.find(
+      (c) =>
+        c.kind === 'blood' &&
+        c.y1 === c.y2 &&
+        Math.abs(c.x2 - c.x1) > 10 &&
+        c.bloodLink?.childIds.includes('inger') &&
+        c.bloodLink?.childIds.includes('goran'),
+    )
+    if (bar) {
+      expect(Math.abs(bar.x2 - bar.x1)).toBeLessThan(OPTS.nodeWidth * 2.5)
+    }
+
+    expect(layout.width).toBeLessThan(before.width * 1.35)
+    expect(overlaps(layout, 'inger', 'goran')).toBe(false)
+  })
 })

@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { BloodEdge } from './components/BloodEdge'
+import { ExportMenu } from './components/ExportMenu'
+import { HeaderOverflow } from './components/HeaderOverflow'
+import { HistoryDialog } from './components/HistoryDialog'
 import { AuthMenu } from './components/AuthMenu'
+import { ToastStack, type ToastItem, type ToastTone } from './components/ToastStack'
 import { LoadingScreen } from './components/LoadingScreen'
 import { PersonCard } from './components/PersonCard'
 import { PersonList } from './components/PersonList'
 import { PersonPanel } from './components/PersonPanel'
+import {
+  RelationPanel,
+  type SelectedEdge,
+} from './components/RelationPanel'
 import {
   PinchZoomPan,
   type CenterRequest,
@@ -25,15 +34,24 @@ import { TreeViewMenu } from './components/TreeViewMenu'
 import { useTreePresence } from './hooks/useTreePresence'
 import { useAuth } from './lib/auth'
 import {
+  persistCheckpoints,
+  withLoadedCheckpoints,
+} from './lib/checkpoints'
+import {
   emptyHistory,
   pushHistory,
   redoHistory,
   undoHistory,
   type StoreHistory,
 } from './lib/history'
-import { layoutFullTree } from './lib/fullTreeLayout'
-import { personLifeLabel } from './lib/personLife'
+import { layoutTree, type LayoutMode } from './lib/layout'
+import { personLifeLabel, formatPlace } from './lib/personLife'
 import { relationToFocus } from './lib/relationship'
+import {
+  linkParentChild,
+  linkSpouse,
+  soleSpouseId,
+} from './lib/relations'
 import {
   createFamilyFromStore,
   loadFamilyByShareToken,
@@ -57,6 +75,74 @@ import './print.css'
 const NODE_WIDTH = 216
 const NODE_HEIGHT = 108
 const TREE_NAME_CACHE_KEY = 'slakttrad-tree-names'
+const COACH_DISMISS_KEY = 'slakttrad-coach-dismissed'
+const LINK_DRAG_THRESHOLD = 6
+
+function readCoachDismissed(): boolean {
+  try {
+    return localStorage.getItem(COACH_DISMISS_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function sameEdge(a: SelectedEdge | null, b: SelectedEdge | null): boolean {
+  if (!a || !b || a.kind !== b.kind) return false
+  if (a.kind === 'spouse' && b.kind === 'spouse') {
+    return (
+      (a.aId === b.aId && a.bId === b.bId) ||
+      (a.aId === b.bId && a.bId === b.aId)
+    )
+  }
+  if (a.kind === 'blood' && b.kind === 'blood') {
+    return (
+      a.childIds.length === b.childIds.length &&
+      a.childIds.every((id) => b.childIds.includes(id)) &&
+      a.parentIds.length === b.parentIds.length &&
+      a.parentIds.every((id) => b.parentIds.includes(id))
+    )
+  }
+  return false
+}
+
+function edgeKey(edge: SelectedEdge): string {
+  if (edge.kind === 'spouse') {
+    return `s:${[edge.aId, edge.bId].sort().join('+')}`
+  }
+  const parents = [...edge.parentIds].sort().join(',')
+  const children = [...edge.childIds].sort().join(',')
+  return `b:${parents}>${children}`
+}
+
+type LinkDrag = {
+  fromId: string
+  kind: QuickAddKind
+  originX: number
+  originY: number
+  currentX: number
+  currentY: number
+  hoverId: string | null
+  moved: boolean
+}
+
+function handleWorldPoint(
+  person: { x: number; y: number },
+  kind: QuickAddKind,
+) {
+  if (kind === 'parent') {
+    return { x: person.x + NODE_WIDTH / 2, y: person.y + 4 }
+  }
+  if (kind === 'child') {
+    return { x: person.x + NODE_WIDTH / 2, y: person.y + NODE_HEIGHT - 4 }
+  }
+  return { x: person.x + NODE_WIDTH - 4, y: person.y + NODE_HEIGHT / 2 }
+}
+
+function personIdFromPoint(clientX: number, clientY: number): string | null {
+  const el = document.elementFromPoint(clientX, clientY)
+  const host = el?.closest('[data-person-id]') as HTMLElement | null
+  return host?.dataset.personId ?? null
+}
 
 function firstName(fullName: string | undefined, fallback: string) {
   if (!fullName?.trim()) return fallback
@@ -117,7 +203,50 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
   const [listOpen, setListOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [saveGuestOpen, setSaveGuestOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [selectedEdge, setSelectedEdge] = useState<SelectedEdge | null>(null)
+  const [hoveredEdge, setHoveredEdge] = useState<SelectedEdge | null>(null)
+  const edgeHoverClearRef = useRef<number | null>(null)
+  const [linkDrag, setLinkDrag] = useState<LinkDrag | null>(null)
+  const [toasts, setToasts] = useState<ToastItem[]>([])
   const [treeView, setTreeView] = useState<TreeView>({ type: 'all' })
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>(() => {
+    try {
+      const raw = localStorage.getItem('slakttrad.layoutMode')
+      if (raw === 'pedigree' || raw === 'fan' || raw === 'full') return raw
+    } catch {
+      /* ignore */
+    }
+    return 'full'
+  })
+  const [coachDismissed, setCoachDismissed] = useState(readCoachDismissed)
+  const linkDragRef = useRef<LinkDrag | null>(null)
+  linkDragRef.current = linkDrag
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
+  }, [])
+
+  const setEdgeHover = useCallback((edge: SelectedEdge | null) => {
+    if (edgeHoverClearRef.current != null) {
+      window.clearTimeout(edgeHoverClearRef.current)
+      edgeHoverClearRef.current = null
+    }
+    if (edge) {
+      setHoveredEdge(edge)
+      return
+    }
+    // Debounce clear so moving between segments of the same link doesn't flicker.
+    edgeHoverClearRef.current = window.setTimeout(() => {
+      setHoveredEdge(null)
+      edgeHoverClearRef.current = null
+    }, 50)
+  }, [])
+
+  const showToast = useCallback((message: string, tone: ToastTone = 'error') => {
+    const id = crypto.randomUUID().slice(0, 10)
+    setToasts((prev) => [...prev.slice(-4), { id, message, tone }])
+  }, [])
   const [history, setHistory] = useState<StoreHistory>(emptyHistory)
   const skipNextSave = useRef(true)
   const didInitialFit = useRef(false)
@@ -158,14 +287,18 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
   const treeLayout = useMemo(() => {
     if (!store) return null
     const nodes = nodesForView(store, treeView)
-    return layoutFullTree(nodes, {
+    return layoutTree(nodes, {
+      mode: layoutMode,
+      rootId: store.rootId,
       nodeWidth: NODE_WIDTH,
       nodeHeight: NODE_HEIGHT,
     })
-  }, [store?.nodes, store?.profiles, store?.rootId, treeView])
+  }, [store?.nodes, store?.profiles, store?.rootId, treeView, layoutMode])
 
   // Fit canvas when the active view changes (or first layout after load)
-  const viewKey = treeView.type === 'surname' ? `surname:${treeView.surname}` : treeView.type
+  const viewKey =
+    `${layoutMode}:` +
+    (treeView.type === 'surname' ? `surname:${treeView.surname}` : treeView.type)
   useEffect(() => {
     if (!treeLayout) return
     didInitialFit.current = true
@@ -183,6 +316,27 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
     )
   }, [store])
 
+  const showCoach = useMemo(() => {
+    if (readOnly || coachDismissed || !store) return false
+    if (store.nodes.length !== 1) return false
+    const node = store.nodes[0]
+    if (!node) return false
+    return (
+      node.parents.length === 0 &&
+      node.spouses.length === 0 &&
+      node.children.length === 0
+    )
+  }, [readOnly, coachDismissed, store])
+
+  const dismissCoach = useCallback(() => {
+    setCoachDismissed(true)
+    try {
+      localStorage.setItem(COACH_DISMISS_KEY, '1')
+    } catch {
+      // Ignore storage failures; dismiss still applies for this session.
+    }
+  }, [])
+
   useEffect(() => {
     let cancelled = false
     didInitialFit.current = false
@@ -192,13 +346,15 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
     setHistory(emptyHistory())
     setListOpen(false)
     setQuickAdd(null)
+    setSelectedEdge(null)
+    setLinkDrag(null)
     setTreeView({ type: 'all' })
 
     if (isGuestMode) {
       const guest = loadOrCreateGuestTree()
       if (!cancelled) {
         skipNextSave.current = true
-        setStore(guest.store)
+        setStore(withLoadedCheckpoints(guest.store, GUEST_TREE_ID))
         setMeta({
           id: GUEST_TREE_ID,
           slug: 'gast',
@@ -224,7 +380,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
           : await loadFamilyBySlug(slug ?? 'davidsson')
         if (cancelled) return
         skipNextSave.current = true
-        setStore(loaded.store)
+        setStore(withLoadedCheckpoints(loaded.store, loaded.meta.id))
         setMeta(loaded.meta)
         setSelectedId(null)
         setStatus('ready')
@@ -286,6 +442,9 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
       setStatus('saving')
       setJustSaved(false)
       try {
+        if (store.checkpoints) {
+          persistCheckpoints(meta.id, store.checkpoints)
+        }
         if (isGuestMode) {
           saveGuestTree(store, meta.name)
         } else {
@@ -297,19 +456,19 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
           if (savedFlashTimer.current) window.clearTimeout(savedFlashTimer.current)
           savedFlashTimer.current = window.setTimeout(() => setJustSaved(false), 1800)
         }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Kunde inte spara')
-          setStatus('error')
+        } catch (err) {
+          if (!cancelled) {
+            showToast(err instanceof Error ? err.message : 'Kunde inte spara')
+            setStatus('ready')
+          }
         }
-      }
     }, 400)
 
     return () => {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [store, meta, readOnly, isGuestMode])
+  }, [store, meta, readOnly, isGuestMode, showToast])
 
   const promoteGuestTree = useCallback(async () => {
     const current = storeRef.current
@@ -327,14 +486,14 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
       setSaveGuestOpen(false)
       navigate(`/trad/${loaded.meta.slug}`, { replace: true })
     } catch (err) {
-      setStatus('error')
-      setError(err instanceof Error ? err.message : 'Kunde inte spara trädet')
+      setStatus('ready')
+      showToast(err instanceof Error ? err.message : 'Kunde inte spara trädet')
       // Allow a manual retry from the save dialog.
       window.setTimeout(() => {
         claimingGuest.current = false
       }, 800)
     }
-  }, [isGuestMode, user, meta, navigate])
+  }, [isGuestMode, user, meta, navigate, showToast])
 
   // If the guest signs in (dialog, header menu, or magic-link return), claim the tree.
   useEffect(() => {
@@ -356,6 +515,120 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
     setHistory(nextHistory)
     setStore(next)
   }, [readOnly])
+
+  const finishLinkDrag = useCallback(
+    (drag: LinkDrag, clientX: number, clientY: number) => {
+      setLinkDrag(null)
+      linkDragRef.current = null
+      if (readOnly || !storeRef.current) return
+
+      const targetId =
+        drag.hoverId && drag.hoverId !== drag.fromId
+          ? drag.hoverId
+          : personIdFromPoint(clientX, clientY)
+
+      if (targetId && targetId !== drag.fromId) {
+        try {
+          let next = storeRef.current
+          if (drag.kind === 'partner') {
+            next = linkSpouse(next, drag.fromId, targetId)
+          } else if (drag.kind === 'child') {
+            next = linkParentChild(next, drag.fromId, targetId)
+          } else {
+            next = linkParentChild(next, targetId, drag.fromId)
+          }
+          onChange(next)
+          setSelectedId(targetId)
+          setSelectedEdge(null)
+          return
+        } catch (err) {
+          showToast(err instanceof Error ? err.message : 'Kunde inte koppla')
+          return
+        }
+      }
+
+      if (!drag.moved) {
+        setSelectedId(drag.fromId)
+        const coParentId =
+          drag.kind === 'child' ? soleSpouseId(storeRef.current!, drag.fromId) : undefined
+        setQuickAdd({ personId: drag.fromId, kind: drag.kind, coParentId })
+      }
+    },
+    [onChange, readOnly, showToast],
+  )
+
+  const onLinkDragStart = useCallback(
+    (personId: string, kind: QuickAddKind, _clientX: number, _clientY: number) => {
+      if (readOnly || !treeLayout) return
+      const person = treeLayout.people.find((p) => p.id === personId)
+      if (!person) return
+      const origin = handleWorldPoint(person, kind)
+      const start: LinkDrag = {
+        fromId: personId,
+        kind,
+        originX: origin.x,
+        originY: origin.y,
+        currentX: origin.x,
+        currentY: origin.y,
+        hoverId: null,
+        moved: false,
+      }
+      linkDragRef.current = start
+      setLinkDrag(start)
+      setSelectedEdge(null)
+      setSelectedId(personId)
+
+      const onMove = (e: PointerEvent) => {
+        const current = linkDragRef.current
+        if (!current) return
+        const el = document.querySelector('.family-tree') as HTMLElement | null
+        const viewport = el?.closest('.pan-zoom') as HTMLElement | null
+        if (!viewport) return
+        const rect = viewport.getBoundingClientRect()
+        const worldLayer = viewport.querySelector(
+          '.pan-zoom__canvas',
+        ) as HTMLElement | null
+        let scale = 1
+        let ox = 0
+        let oy = 0
+        if (worldLayer) {
+          const t = getComputedStyle(worldLayer).transform
+          if (t && t !== 'none') {
+            const m = new DOMMatrixReadOnly(t)
+            scale = m.a || 1
+            ox = m.e
+            oy = m.f
+          }
+        }
+        const wx = (e.clientX - rect.left - ox) / scale
+        const wy = (e.clientY - rect.top - oy) / scale
+        const dx = wx - current.originX
+        const dy = wy - current.originY
+        const moved =
+          current.moved || Math.hypot(dx, dy) * scale >= LINK_DRAG_THRESHOLD
+        const hoverRaw = personIdFromPoint(e.clientX, e.clientY)
+        const hoverId =
+          hoverRaw && hoverRaw !== current.fromId ? hoverRaw : null
+        const next = { ...current, currentX: wx, currentY: wy, hoverId, moved }
+        linkDragRef.current = next
+        setLinkDrag(next)
+      }
+
+      const onUp = (e: PointerEvent) => {
+        window.removeEventListener('pointermove', onMove)
+        window.removeEventListener('pointerup', onUp)
+        window.removeEventListener('pointercancel', onUp)
+        const current = linkDragRef.current
+        if (!current) return
+        finishLinkDrag(current, e.clientX, e.clientY)
+      }
+
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', onUp)
+      window.addEventListener('pointercancel', onUp)
+    },
+    [finishLinkDrag, readOnly, treeLayout],
+  )
 
   const onSetFocus = useCallback(
     (id: string) => {
@@ -442,6 +715,15 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
     setTreeView(next)
   }, [])
 
+  const onChangeLayoutMode = useCallback((mode: LayoutMode) => {
+    setLayoutMode(mode)
+    try {
+      localStorage.setItem('slakttrad.layoutMode', mode)
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
   const revealCreatedPerson = useCallback((id: string) => {
     setSelectedId(id)
   }, [])
@@ -460,6 +742,10 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
           setSaveGuestOpen(false)
           return
         }
+        if (historyOpen) {
+          setHistoryOpen(false)
+          return
+        }
         if (shareOpen) {
           setShareOpen(false)
           return
@@ -472,13 +758,70 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
           setListOpen(false)
           return
         }
+        if (selectedEdge) {
+          setSelectedEdge(null)
+          return
+        }
         if (selectedId) {
           setSelectedId(null)
         }
         return
       }
 
-      if (readOnly || typing) return
+      if (typing) return
+
+      const modalOpen =
+        Boolean(quickAdd) || shareOpen || listOpen || historyOpen || saveGuestOpen
+
+      if (
+        !modalOpen &&
+        selectedId &&
+        treeLayout &&
+        (e.key === 'ArrowLeft' ||
+          e.key === 'ArrowRight' ||
+          e.key === 'ArrowUp' ||
+          e.key === 'ArrowDown')
+      ) {
+        e.preventDefault()
+        const dirX =
+          e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0
+        const dirY = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0
+        const current = treeLayout.people.find((p) => p.id === selectedId)
+        if (!current) return
+        const cx = current.x + NODE_WIDTH / 2
+        const cy = current.y + NODE_HEIGHT / 2
+        let bestId: string | null = null
+        let bestDist = Infinity
+        for (const person of treeLayout.people) {
+          if (person.id === selectedId) continue
+          const px = person.x + NODE_WIDTH / 2
+          const py = person.y + NODE_HEIGHT / 2
+          const dx = px - cx
+          const dy = py - cy
+          const dot = dx * dirX + dy * dirY
+          if (dot <= 0) continue
+          const len = Math.hypot(dx, dy)
+          if (len < 1e-6) continue
+          // Within ~60° of the arrow direction
+          if (dot / len < 0.5) continue
+          if (len < bestDist) {
+            bestDist = len
+            bestId = person.id
+          }
+        }
+        if (!bestId) return
+        const next = treeLayout.people.find((p) => p.id === bestId)
+        if (!next) return
+        setSelectedId(bestId)
+        setCenterRequest({
+          x: next.x + NODE_WIDTH / 2,
+          y: next.y + NODE_HEIGHT / 2,
+          key: Date.now(),
+        })
+        return
+      }
+
+      if (readOnly) return
 
       const mod = e.metaKey || e.ctrlKey
       if (!mod) return
@@ -495,7 +838,19 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [quickAdd, listOpen, shareOpen, saveGuestOpen, selectedId, readOnly, onUndo, onRedo])
+  }, [
+    quickAdd,
+    listOpen,
+    shareOpen,
+    saveGuestOpen,
+    historyOpen,
+    selectedEdge,
+    selectedId,
+    readOnly,
+    onUndo,
+    onRedo,
+    treeLayout,
+  ])
 
   const selectedRelation = useMemo(() => {
     if (!store || !selectedId || !focusId) return null
@@ -507,12 +862,10 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
     if (isGuestMode) {
       if (status === 'saving') return 'Sparar…'
       if (justSaved) return 'Sparat lokalt'
-      if (status === 'error') return error ?? 'Kunde inte spara'
       return null
     }
     if (readOnly) return 'Logga in för att redigera'
     if (status === 'saving') return 'Sparar…'
-    if (status === 'error') return error ?? 'Kunde inte spara'
     if (justSaved) return 'Sparat'
     return null
   })()
@@ -545,6 +898,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
 
   return (
     <div className="app">
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
       <header className="app__header">
         <div>
           <p className="app__brand">
@@ -563,12 +917,12 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
         </div>
         <div className="app__header-actions">
           <div className="app__header-context">
-            <PresenceAvatars peers={peers} self={presenceSelf} />            {statusHint ? (
+            <PresenceAvatars peers={peers} self={presenceSelf} />
+            {statusHint ? (
               <p
                 className={[
                   'app__hint',
                   status === 'saving' || justSaved ? 'app__hint--save' : '',
-                  status === 'error' ? 'app__hint--error' : '',
                 ]
                   .filter(Boolean)
                   .join(' ')}
@@ -581,41 +935,59 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
           <button type="button" className="app__tool" onClick={() => setListOpen(true)}>
             Personer
           </button>
-          <TreeViewMenu store={store} view={treeView} onChange={onChangeView} />
-          {!readOnly ? (
-            <>
-              <button
-                type="button"
-                className="app__tool app__tool--icon app__tool--quiet"
-                onClick={onUndo}
-                disabled={history.past.length === 0}
-                title="Ångra (Ctrl+Z)"
-                aria-label="Ångra"
-              >
-                <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden>
-                  <path
-                    fill="currentColor"
-                    d="M7.2 4.3 3.5 8l3.7 3.7a.9.9 0 0 0 1.3-1.3L6.9 8.9H12a3.6 3.6 0 0 1 0 7.2H9.2a.9.9 0 1 0 0 1.8H12a5.4 5.4 0 1 0 0-10.8H6.9l1.6-1.5a.9.9 0 1 0-1.3-1.3Z"
-                  />
-                </svg>
-              </button>
-              <button
-                type="button"
-                className="app__tool app__tool--icon app__tool--quiet"
-                onClick={onRedo}
-                disabled={history.future.length === 0}
-                title="Gör om (Ctrl+Shift+Z)"
-                aria-label="Gör om"
-              >
-                <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden>
-                  <path
-                    fill="currentColor"
-                    d="M12.8 4.3a.9.9 0 0 0-1.3 1.3L13.1 7.1H8a5.4 5.4 0 1 0 0 10.8h2.8a.9.9 0 1 0 0-1.8H8a3.6 3.6 0 1 1 0-7.2h5.1l-1.6 1.5a.9.9 0 1 0 1.3 1.3L16.5 8l-3.7-3.7Z"
-                  />
-                </svg>
-              </button>
-            </>
-          ) : null}
+          <HeaderOverflow>
+            <TreeViewMenu
+              store={store}
+              view={treeView}
+              onChange={onChangeView}
+              layoutMode={layoutMode}
+              onChangeLayoutMode={onChangeLayoutMode}
+            />
+            {!readOnly ? (
+              <>
+                <button
+                  type="button"
+                  className="app__tool app__tool--icon app__tool--quiet"
+                  onClick={onUndo}
+                  disabled={history.past.length === 0}
+                  title="Ångra (Ctrl+Z)"
+                  aria-label="Ångra"
+                >
+                  <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden>
+                    <path
+                      fill="currentColor"
+                      d="M7.2 4.3 3.5 8l3.7 3.7a.9.9 0 0 0 1.3-1.3L6.9 8.9H12a3.6 3.6 0 0 1 0 7.2H9.2a.9.9 0 1 0 0 1.8H12a5.4 5.4 0 1 0 0-10.8H6.9l1.6-1.5a.9.9 0 1 0-1.3-1.3Z"
+                    />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  className="app__tool app__tool--icon app__tool--quiet"
+                  onClick={onRedo}
+                  disabled={history.future.length === 0}
+                  title="Gör om (Ctrl+Shift+Z)"
+                  aria-label="Gör om"
+                >
+                  <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden>
+                    <path
+                      fill="currentColor"
+                      d="M12.8 4.3a.9.9 0 0 0-1.3 1.3L13.1 7.1H8a5.4 5.4 0 1 0 0 10.8h2.8a.9.9 0 1 0 0-1.8H8a3.6 3.6 0 1 1 0-7.2h5.1l-1.6 1.5a.9.9 0 1 0 1.3 1.3L16.5 8l-3.7-3.7Z"
+                    />
+                  </svg>
+                </button>
+              </>
+            ) : null}
+            <ExportMenu
+              store={store}
+              treeName={meta.name}
+              layout={treeLayout}
+              nodeWidth={NODE_WIDTH}
+              nodeHeight={NODE_HEIGHT}
+              readOnly={readOnly}
+              onImport={(next) => onChange(next)}
+              onOpenHistory={() => setHistoryOpen(true)}
+            />
+          </HeaderOverflow>
           {isGuestMode ? (
             <button
               type="button"
@@ -626,30 +998,6 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
               Spara…
             </button>
           ) : null}
-          <button
-            type="button"
-            className="app__tool app__tool--icon app__tool--quiet"
-            onClick={() => window.print()}
-            title="Skriv ut"
-            aria-label="Skriv ut"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth="1.5"
-              stroke="currentColor"
-              width="18"
-              height="18"
-              aria-hidden
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z"
-              />
-            </svg>
-          </button>
           {!readOnly && meta.shareToken ? (
             <button
               type="button"
@@ -677,7 +1025,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
           centerRequest={centerRequest}
           fitRequest={fitRequest}
           onPointerWorldMove={publishCursor}
-          minimapInsetRight={selectedId ? 380 : 0}
+          minimapInsetRight={selectedId || selectedEdge ? 380 : 0}
           minimap={
             treeLayout
               ? {
@@ -694,13 +1042,20 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
               : null
           }
           onBackgroundClick={() => {
-            if (quickAdd || shareOpen || listOpen) return
+            if (quickAdd || shareOpen || listOpen || historyOpen || linkDrag) return
             setSelectedId(null)
+            setSelectedEdge(null)
+            setHoveredEdge(null)
           }}
         >
           {treeLayout ? (
             <div
-              className="family-tree"
+              className={[
+                'family-tree',
+                linkDrag ? 'family-tree--linking' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
               style={{ width: treeLayout.width, height: treeLayout.height }}
             >
               {treeLayout.connectors.map((line, index) => {
@@ -708,19 +1063,55 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
                   const [aId, bId] = line.spouseIds
                   const aName = store.profiles[aId]?.name ?? 'partner'
                   const bName = store.profiles[bId]?.name ?? 'partner'
+                  const edge: SelectedEdge = { kind: 'spouse', aId, bId }
+                  const key = edgeKey(edge)
+                  const active =
+                    sameEdge(selectedEdge, edge) || sameEdge(hoveredEdge, edge)
                   return (
                     <SpouseEdge
                       key={`c-${index}`}
                       line={line}
                       label={`${aName} och ${bName}`}
-                      onAddChild={() => {
-                        setSelectedId(aId)
-                        setQuickAdd({
-                          personId: aId,
-                          kind: 'child',
-                          coParentId: bId,
-                        })
+                      edgeKey={key}
+                      active={active}
+                      onSelect={() => {
+                        setSelectedId(null)
+                        setSelectedEdge(edge)
                       }}
+                      onHoverChange={(hovered) =>
+                        setEdgeHover(hovered ? edge : null)
+                      }
+                    />
+                  )
+                }
+                if (line.kind === 'blood' && line.bloodLink && !readOnly) {
+                  const { childIds, parentIds } = line.bloodLink
+                  const edge: SelectedEdge = {
+                    kind: 'blood',
+                    childIds,
+                    parentIds,
+                  }
+                  const key = edgeKey(edge)
+                  const active =
+                    sameEdge(selectedEdge, edge) || sameEdge(hoveredEdge, edge)
+                  const labelChild =
+                    childIds.length === 1
+                      ? (store.profiles[childIds[0]!]?.name ?? 'barn')
+                      : `${childIds.length} barn`
+                  return (
+                    <BloodEdge
+                      key={`c-${index}`}
+                      line={line}
+                      childName={labelChild}
+                      edgeKey={key}
+                      active={active}
+                      onSelect={() => {
+                        setSelectedId(null)
+                        setSelectedEdge(edge)
+                      }}
+                      onHoverChange={(hovered) =>
+                        setEdgeHover(hovered ? edge : null)
+                      }
                     />
                   )
                 }
@@ -753,15 +1144,22 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
                     relationLabel={relationToFocus(store, person.id, focusId)}
                     isSelected={person.id === selectedId}
                     isFocus={person.id === focusId}
+                    isDropTarget={linkDrag?.hoverId === person.id}
                     readOnly={readOnly}
-                    canAddPartner={(graphNode?.spouses.length ?? 0) === 0}
                     canAddParent={(graphNode?.parents.length ?? 0) < 2}
-                    onSelect={setSelectedId}
+                    onSelect={(id) => {
+                      setSelectedEdge(null)
+                      setSelectedId(id)
+                    }}
                     onQuickAdd={(id, kind) => {
                       if (readOnly) return
+                      setSelectedEdge(null)
                       setSelectedId(id)
-                      setQuickAdd({ personId: id, kind })
+                      const coParentId =
+                        kind === 'child' ? soleSpouseId(store, id) : undefined
+                      setQuickAdd({ personId: id, kind, coParentId })
                     }}
+                    onLinkDragStart={onLinkDragStart}
                     style={{
                       width: NODE_WIDTH,
                       height: NODE_HEIGHT,
@@ -770,10 +1168,56 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
                   />
                 )
               })}
+              {linkDrag?.moved ? (
+                <svg
+                  className="family-tree__link-drag"
+                  width={treeLayout.width}
+                  height={treeLayout.height}
+                  aria-hidden
+                >
+                  <line
+                    x1={linkDrag.originX}
+                    y1={linkDrag.originY}
+                    x2={linkDrag.currentX}
+                    y2={linkDrag.currentY}
+                    className={[
+                      'family-tree__link-drag-line',
+                      `family-tree__link-drag-line--${linkDrag.kind}`,
+                      linkDrag.hoverId
+                        ? 'family-tree__link-drag-line--valid'
+                        : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                  />
+                  <circle
+                    cx={linkDrag.currentX}
+                    cy={linkDrag.currentY}
+                    r={5}
+                    className={[
+                      'family-tree__link-drag-tip',
+                      `family-tree__link-drag-tip--${linkDrag.kind}`,
+                    ].join(' ')}
+                  />
+                </svg>
+              ) : null}
               <RemoteCursors cursors={remoteCursors} />
             </div>
           ) : null}
         </PinchZoomPan>
+
+        {showCoach ? (
+          <aside className="app__coach" role="status">
+            <h2 className="app__coach-title">Kom igång</h2>
+            <p className="app__coach-body">
+              Lägg till partner, förälder eller barn via ikonerna på personkortet — eller
+              dra från handtaget till en annan person.
+            </p>
+            <button type="button" className="app__tool" onClick={dismissCoach}>
+              Jag förstår
+            </button>
+          </aside>
+        ) : null}
 
         {selectedId && !listOpen ? (
           <PersonPanel
@@ -795,6 +1239,29 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
             onPersonCreated={revealCreatedPerson}
             onPersonDeleted={() => {
               setSelectedId(null)
+            }}
+          />
+        ) : null}
+
+        {selectedEdge && !listOpen && !selectedId ? (
+          <RelationPanel
+            store={store}
+            edge={selectedEdge}
+            readOnly={readOnly}
+            onChange={onChange}
+            onClose={() => setSelectedEdge(null)}
+            onCenter={(id) => {
+              setSelectedEdge(null)
+              onCenter(id)
+            }}
+            onAddSharedChild={(aId, bId) => {
+              setSelectedEdge(null)
+              setSelectedId(aId)
+              setQuickAdd({
+                personId: aId,
+                kind: 'child',
+                coParentId: bId,
+              })
             }}
           />
         ) : null}
@@ -838,11 +1305,21 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
           <ShareDialog
             url={shareUrlForToken(meta.shareToken)}
             treeId={meta.id}
+            treeSlug={meta.slug}
             canInvite={
               !!user &&
               (meta.ownerId == null || meta.ownerId === user.id)
             }
+            onRotated={(next) => setMeta(next)}
             onClose={() => setShareOpen(false)}
+          />
+        ) : null}
+
+        {!readOnly && historyOpen ? (
+          <HistoryDialog
+            store={store}
+            onChange={onChange}
+            onClose={() => setHistoryOpen(false)}
           />
         ) : null}
       </main>
@@ -856,10 +1333,56 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
         <div className="print-sheet__list">
           {printPeople.map((person) => (
             <div key={person.id} className="print-sheet__row">
-              <span className="print-sheet__name">
-                {person.name}
-                {person.nickname?.trim() ? ` (${person.nickname.trim()})` : ''}
-              </span>
+              <div className="print-sheet__identity">
+                <span className="print-sheet__name">
+                  {person.name}
+                  {person.nickname?.trim() ? ` (${person.nickname.trim()})` : ''}
+                  {person.maidenName?.trim()
+                    ? ` f. ${person.maidenName.trim()}`
+                    : ''}
+                </span>
+                {person.occupation?.trim() ? (
+                  <span className="print-sheet__occ">{person.occupation.trim()}</span>
+                ) : null}
+                {person.religion?.trim() ? (
+                  <span className="print-sheet__occ">{person.religion.trim()}</span>
+                ) : null}
+                {formatPlace(person.birthPlace, person.birthCountry) ||
+                formatPlace(person.deathPlace, person.deathCountry) ||
+                formatPlace(person.residencePlace, person.residenceCountry) ? (
+                  <span className="print-sheet__place">
+                    {[
+                      formatPlace(person.birthPlace, person.birthCountry)
+                        ? `Född: ${formatPlace(person.birthPlace, person.birthCountry)}`
+                        : null,
+                      formatPlace(person.deathPlace, person.deathCountry)
+                        ? `Död: ${formatPlace(person.deathPlace, person.deathCountry)}`
+                        : null,
+                      formatPlace(person.residencePlace, person.residenceCountry)
+                        ? `Bor: ${formatPlace(person.residencePlace, person.residenceCountry)}`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
+                ) : null}
+                {person.sources?.trim() ? (
+                  <span className="print-sheet__events">
+                    Källa: {person.sources.trim()}
+                  </span>
+                ) : null}
+                {(person.events ?? []).length > 0 ? (
+                  <span className="print-sheet__events">
+                    {(person.events ?? [])
+                      .map((ev) =>
+                        [ev.title || ev.type, ev.date, ev.place]
+                          .filter(Boolean)
+                          .join(' '),
+                      )
+                      .join(' · ')}
+                  </span>
+                ) : null}
+              </div>
               <span className="print-sheet__rel">
                 {relationToFocus(store, person.id, focusId) ?? ''}
               </span>

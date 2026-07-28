@@ -1,10 +1,17 @@
 .person-card-slot {
   position: absolute;
-  z-index: 1;
+  z-index: 5;
   display: flex;
   padding: 8px;
   box-sizing: border-box;
   overflow: visible;
+  /* Padding must not steal clicks from relation lines underneath. */
+  pointer-events: none;
+}
+
+.person-card-slot .person-card,
+.person-card-slot .person-card__dot {
+  pointer-events: auto;
 }
 
 .person-card {
@@ -101,34 +108,13 @@
   cursor: pointer;
 }
 
-.person-card__photo,
-.person-card__avatar {
+.person-card__photo {
   width: 40px;
   height: 40px;
   border-radius: 10px;
   flex-shrink: 0;
   object-fit: cover;
   box-shadow: 0 0 0 1px rgba(28, 36, 28, 0.08);
-}
-
-.person-card__avatar {
-  display: grid;
-  place-items: center;
-  background: rgba(255, 255, 255, 0.62);
-  font-family: var(--font-display);
-  font-size: 1rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
-.person-card--male .person-card__avatar {
-  background: rgba(255, 255, 255, 0.55);
-  color: #2a4554;
-}
-
-.person-card--female .person-card__avatar {
-  background: rgba(255, 255, 255, 0.55);
-  color: #5a3830;
 }
 
 .person-card__body {
@@ -196,17 +182,16 @@
   z-index: 3;
   display: grid;
   place-items: center;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   padding: 0;
   border: 2px solid #fff;
   border-radius: 50%;
   background: var(--teal);
   color: #fff;
-  font-size: 0.85rem;
-  font-weight: 700;
   line-height: 1;
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
   box-shadow: 0 2px 8px rgba(28, 36, 28, 0.18);
   opacity: 0;
   pointer-events: none;
@@ -214,12 +199,17 @@
     opacity 140ms ease,
     transform 140ms ease,
     width 140ms ease,
-    height 140ms ease;
+    height 140ms ease,
+    background 140ms ease;
 }
 
-.person-card__dot span {
+.person-card__dot svg {
   display: block;
-  translate: 0 -0.5px;
+  pointer-events: none;
+}
+
+.person-card__dot--partner {
+  background: #a34d5c;
 }
 
 .person-card-slot--editable:hover .person-card__dot,
@@ -266,9 +256,22 @@
 }
 
 .person-card__dot:hover {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   background: #244a40;
+}
+
+.person-card__dot--partner:hover {
+  background: #823944;
+}
+
+.person-card-slot--drop-target .person-card,
+.person-card--drop-target {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 4px rgba(47, 93, 80, 0.16),
+    0 10px 24px rgba(28, 36, 28, 0.14);
 }
 
 @media (hover: none) {

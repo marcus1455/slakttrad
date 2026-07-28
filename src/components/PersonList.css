@@ -67,15 +67,25 @@
 }
 
 .person-list__close {
-  padding: 0.45rem 0.7rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: #fff;
-  color: var(--ink);
-  font-family: var(--font-ui);
-  font-size: 0.85rem;
-  font-weight: 600;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  margin: -0.25rem -0.35rem 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.45rem;
+  line-height: 1;
   cursor: pointer;
+}
+
+.person-list__close:hover {
+  background: color-mix(in srgb, var(--muted) 10%, transparent);
+  color: var(--ink);
 }
 
 .person-list__search {

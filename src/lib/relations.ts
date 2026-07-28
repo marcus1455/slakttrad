@@ -1,6 +1,6 @@
 import type { Gender, Node, Relation, RelType } from 'relatives-tree/lib/types'
 import type { FamilyStore, Gender as AppGender, PersonProfile } from '../types'
-import { assertParentBornBeforeChild } from './personLife'
+import { assertParentBornBeforeChild, effectiveBirthYear } from './personLife'
 
 type MutableNode = {
   id: string
@@ -13,6 +13,12 @@ type MutableNode = {
 
 const bloodType = 'blood' as RelType
 const marriedType = 'married' as RelType
+const divorcedType = 'divorced' as RelType
+const adoptedType = 'adopted' as RelType
+const halfType = 'half' as RelType
+
+export type SpouseRelType = 'married' | 'divorced'
+export type ParentChildRelType = 'blood' | 'adopted' | 'half'
 
 function newId(): string {
   return crypto.randomUUID().slice(0, 8)
@@ -28,6 +34,31 @@ function blood(id: string): Relation {
 
 function married(id: string): Relation {
   return { id, type: marriedType }
+}
+
+function spouseRel(id: string, type: SpouseRelType): Relation {
+  return { id, type: (type === 'divorced' ? divorcedType : marriedType) as RelType }
+}
+
+function parentChildRel(id: string, type: ParentChildRelType): Relation {
+  const map: Record<ParentChildRelType, RelType> = {
+    blood: bloodType,
+    adopted: adoptedType,
+    half: halfType,
+  }
+  return { id, type: map[type] }
+}
+
+export function spouseTypeLabel(type: RelType | string): string {
+  if (type === divorcedType || type === 'divorced') return 'Frånskild'
+  if (type === marriedType || type === 'married') return 'Partner'
+  return 'Partner'
+}
+
+export function parentChildTypeLabel(type: RelType | string): string {
+  if (type === adoptedType || type === 'adopted') return 'Adoptiv'
+  if (type === halfType || type === 'half') return 'Halv'
+  return 'Blod'
 }
 
 function cloneNodes(nodes: readonly Node[]): MutableNode[] {
@@ -73,19 +104,19 @@ export function updateProfile(
 
   const nextProfile = { ...profile, ...patch }
 
-  if (patch.birthYear !== undefined) {
+  if (patch.birthYear !== undefined || patch.birthDate !== undefined) {
     const node = store.nodes.find((n) => n.id === id)
     if (node) {
       for (const parent of node.parents) {
         assertParentBornBeforeChild(
-          store.profiles[parent.id]?.birthYear,
-          nextProfile.birthYear,
+          effectiveBirthYear(store.profiles[parent.id]),
+          effectiveBirthYear(nextProfile),
         )
       }
       for (const child of node.children) {
         assertParentBornBeforeChild(
-          nextProfile.birthYear,
-          store.profiles[child.id]?.birthYear,
+          effectiveBirthYear(nextProfile),
+          effectiveBirthYear(store.profiles[child.id]),
         )
       }
     }
@@ -130,21 +161,23 @@ export function addPartner(
   store: FamilyStore,
   personId: string,
   input: NewPersonInput,
+  options?: { spouseType?: SpouseRelType },
 ): FamilyStore {
   const nodes = cloneNodes(store.nodes)
   const person = getMutable(nodes, personId)
   const id = newId()
+  const spouseType = options?.spouseType ?? 'married'
 
   const partner: MutableNode = {
     id,
     gender: toLibGender(input.gender),
     parents: [],
     siblings: [],
-    spouses: [married(personId)],
+    spouses: [spouseRel(personId, spouseType)],
     children: person.children.map((c) => ({ ...c })),
   }
 
-  person.spouses = ensureRel(person.spouses, id, married(id))
+  person.spouses = ensureRel(person.spouses, id, spouseRel(id, spouseType))
 
   for (const child of person.children) {
     const childNode = getMutable(nodes, child.id)
@@ -165,11 +198,12 @@ export function addChild(
   store: FamilyStore,
   parentId: string,
   input: NewPersonInput,
-  options?: { coParentId?: string },
+  options?: { coParentId?: string; linkType?: ParentChildRelType },
 ): FamilyStore {
   const nodes = cloneNodes(store.nodes)
   const parent = getMutable(nodes, parentId)
   const coParentId = options?.coParentId
+  const linkType = options?.linkType ?? 'blood'
   const id = newId()
 
   if (coParentId) {
@@ -182,18 +216,18 @@ export function addChild(
   }
 
   assertParentBornBeforeChild(
-    store.profiles[parentId]?.birthYear,
+    effectiveBirthYear(store.profiles[parentId]),
     input.birthYear,
   )
   if (coParentId) {
     assertParentBornBeforeChild(
-      store.profiles[coParentId]?.birthYear,
+      effectiveBirthYear(store.profiles[coParentId]),
       input.birthYear,
     )
   }
 
-  const parents: Relation[] = [blood(parentId)]
-  if (coParentId) parents.push(blood(coParentId))
+  const parents: Relation[] = [parentChildRel(parentId, linkType)]
+  if (coParentId) parents.push(parentChildRel(coParentId, linkType))
 
   // Full + half siblings via the parent(s) this child is linked to.
   const siblingIds = new Set<string>()
@@ -212,10 +246,10 @@ export function addChild(
     children: [],
   }
 
-  parent.children = ensureRel(parent.children, id, blood(id))
+  parent.children = ensureRel(parent.children, id, parentChildRel(id, linkType))
   if (coParentId) {
     const spouse = getMutable(nodes, coParentId)
-    spouse.children = ensureRel(spouse.children, id, blood(id))
+    spouse.children = ensureRel(spouse.children, id, parentChildRel(id, linkType))
   }
 
   nodes.push(child)
@@ -233,17 +267,19 @@ export function addParent(
   store: FamilyStore,
   personId: string,
   input: NewPersonInput,
+  options?: { linkType?: ParentChildRelType },
 ): FamilyStore {
   const nodes = cloneNodes(store.nodes)
   const person = getMutable(nodes, personId)
+  const linkType = options?.linkType ?? 'blood'
 
   if (person.parents.length >= 2) {
     throw new Error('Personen har redan två föräldrar')
   }
 
-  assertParentBornBeforeChild(input.birthYear, store.profiles[personId]?.birthYear)
+  assertParentBornBeforeChild(input.birthYear, effectiveBirthYear(store.profiles[personId]))
   for (const sib of person.siblings) {
-    assertParentBornBeforeChild(input.birthYear, store.profiles[sib.id]?.birthYear)
+    assertParentBornBeforeChild(input.birthYear, effectiveBirthYear(store.profiles[sib.id]))
   }
 
   const id = newId()
@@ -255,10 +291,13 @@ export function addParent(
     parents: [],
     siblings: [],
     spouses: otherParentId ? [married(otherParentId)] : [],
-    children: [blood(personId), ...person.siblings.map((s) => blood(s.id))],
+    children: [
+      parentChildRel(personId, linkType),
+      ...person.siblings.map((s) => blood(s.id)),
+    ],
   }
 
-  person.parents = ensureRel(person.parents, id, blood(id))
+  person.parents = ensureRel(person.parents, id, parentChildRel(id, linkType))
 
   for (const sib of person.siblings) {
     const sibNode = getMutable(nodes, sib.id)
@@ -281,6 +320,48 @@ export function addParent(
   }
 
   return { ...store, nodes: asNodes(nodes), profiles }
+}
+
+export function setSpouseRelationType(
+  store: FamilyStore,
+  personId: string,
+  spouseId: string,
+  spouseType: SpouseRelType,
+): FamilyStore {
+  const nodes = cloneNodes(store.nodes)
+  const person = getMutable(nodes, personId)
+  const spouse = getMutable(nodes, spouseId)
+  if (!person.spouses.some((s) => s.id === spouseId)) {
+    throw new Error('Personerna är inte partners')
+  }
+  person.spouses = person.spouses.map((s) =>
+    s.id === spouseId ? spouseRel(spouseId, spouseType) : s,
+  )
+  spouse.spouses = spouse.spouses.map((s) =>
+    s.id === personId ? spouseRel(personId, spouseType) : s,
+  )
+  return { ...store, nodes: asNodes(nodes) }
+}
+
+export function setParentChildRelationType(
+  store: FamilyStore,
+  childId: string,
+  parentId: string,
+  linkType: ParentChildRelType,
+): FamilyStore {
+  const nodes = cloneNodes(store.nodes)
+  const child = getMutable(nodes, childId)
+  const parent = getMutable(nodes, parentId)
+  if (!child.parents.some((p) => p.id === parentId)) {
+    throw new Error('Personen är inte förälder')
+  }
+  child.parents = child.parents.map((p) =>
+    p.id === parentId ? parentChildRel(parentId, linkType) : p,
+  )
+  parent.children = parent.children.map((c) =>
+    c.id === childId ? parentChildRel(childId, linkType) : c,
+  )
+  return { ...store, nodes: asNodes(nodes) }
 }
 
 function withoutRel(list: Relation[], id: string): Relation[] {
@@ -352,6 +433,17 @@ export function removePerson(store: FamilyStore, personId: string): FamilyStore 
   }
 }
 
+/** When the person has exactly one partner, return that partner id. */
+export function soleSpouseId(
+  store: FamilyStore,
+  personId: string,
+): string | undefined {
+  const node = store.nodes.find((n) => n.id === personId)
+  if (!node || node.spouses.length !== 1) return undefined
+  const id = node.spouses[0]?.id
+  return id && store.nodes.some((n) => n.id === id) ? id : undefined
+}
+
 export function unlinkSpouse(store: FamilyStore, personId: string, spouseId: string): FamilyStore {
   const nodes = cloneNodes(store.nodes)
   const person = getMutable(nodes, personId)
@@ -390,6 +482,65 @@ export function unlinkParent(
       coParent.children.map((c) => c.id),
     )
   }
+
+  return { ...store, nodes: asNodes(nodes) }
+}
+
+/** Link two existing people as partners. */
+export function linkSpouse(
+  store: FamilyStore,
+  personId: string,
+  spouseId: string,
+  spouseType: SpouseRelType = 'married',
+): FamilyStore {
+  if (personId === spouseId) {
+    throw new Error('Kan inte koppla en person till sig själv')
+  }
+  const nodes = cloneNodes(store.nodes)
+  const person = getMutable(nodes, personId)
+  const spouse = getMutable(nodes, spouseId)
+  if (person.spouses.some((s) => s.id === spouseId)) {
+    return store
+  }
+  person.spouses = ensureRel(person.spouses, spouseId, spouseRel(spouseId, spouseType))
+  spouse.spouses = ensureRel(spouse.spouses, personId, spouseRel(personId, spouseType))
+  return { ...store, nodes: asNodes(nodes) }
+}
+
+/** Link an existing parent to an existing child. */
+export function linkParentChild(
+  store: FamilyStore,
+  parentId: string,
+  childId: string,
+  linkType: ParentChildRelType = 'blood',
+): FamilyStore {
+  if (parentId === childId) {
+    throw new Error('Kan inte koppla en person till sig själv')
+  }
+  const nodes = cloneNodes(store.nodes)
+  const parent = getMutable(nodes, parentId)
+  const child = getMutable(nodes, childId)
+
+  if (child.parents.some((p) => p.id === parentId)) {
+    return store
+  }
+  if (child.parents.length >= 2) {
+    throw new Error('Personen har redan två föräldrar')
+  }
+  if (parent.parents.some((p) => p.id === childId)) {
+    throw new Error('Kan inte skapa cirkulär relation')
+  }
+
+  assertParentBornBeforeChild(
+    effectiveBirthYear(store.profiles[parentId]),
+    effectiveBirthYear(store.profiles[childId]),
+  )
+
+  child.parents = ensureRel(child.parents, parentId, parentChildRel(parentId, linkType))
+  parent.children = ensureRel(parent.children, childId, parentChildRel(childId, linkType))
+
+  const siblingIds = parent.children.map((c) => c.id)
+  linkSiblings(nodes, siblingIds)
 
   return { ...store, nodes: asNodes(nodes) }
 }

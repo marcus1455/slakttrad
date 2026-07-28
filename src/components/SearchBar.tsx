@@ -17,7 +17,17 @@ export function SearchBar({ store, onSelect }: Props) {
     if (q.length < 1) return []
     return Object.values(store.profiles)
       .filter((p) => {
-        const hay = [p.name, p.nickname, p.birthYear, p.occupation, p.birthPlace]
+        const hay = [
+          p.name,
+          p.nickname,
+          p.maidenName,
+          p.alsoKnownAs,
+          p.birthYear,
+          p.occupation,
+          p.birthPlace,
+          p.birthCountry,
+          p.religion,
+        ]
           .filter(Boolean)
           .join(' ')
           .toLowerCase()

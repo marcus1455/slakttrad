@@ -1,5 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useAuth } from '../lib/auth'
+import { useFocusTrap } from '../lib/useFocusTrap'
 import './SaveGuestDialog.css'
 
 type Props = {
@@ -13,6 +14,7 @@ type Mode = 'register' | 'login' | 'magic'
 
 export function SaveGuestDialog({ treeName, onClose, onSignedIn }: Props) {
   const { signInWithPassword, signUpWithPassword, signInWithEmail } = useAuth()
+  const cardRef = useRef<HTMLFormElement>(null)
   const [mode, setMode] = useState<Mode>('register')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -30,6 +32,8 @@ export function SaveGuestDialog({ treeName, onClose, onSignedIn }: Props) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
+
+  useFocusTrap(true, cardRef)
 
   const title =
     mode === 'login' ? 'Logga in och spara' : mode === 'magic' ? 'Spara via e-postlänk' : 'Spara med konto'
@@ -50,6 +54,7 @@ export function SaveGuestDialog({ treeName, onClose, onSignedIn }: Props) {
   return (
     <div className="save-guest" role="dialog" aria-modal="true" aria-label={title}>
       <form
+        ref={cardRef}
         className="save-guest__card"
         onSubmit={async (e: FormEvent) => {
           e.preventDefault()
@@ -83,13 +88,23 @@ export function SaveGuestDialog({ treeName, onClose, onSignedIn }: Props) {
           }
         }}
       >
-        <header>
-          <p>Gästläge</p>
-          <h3>{title}</h3>
-          <p className="save-guest__lead">
-            Ange e-post för att spara <strong>{treeName}</strong> i molnet. Annars
-            ligger det kvar bara i den här webbläsarsessionen.
-          </p>
+        <header className="save-guest__header">
+          <div>
+            <p>Gästläge</p>
+            <h3>{title}</h3>
+            <p className="save-guest__lead">
+              Ange e-post för att spara <strong>{treeName}</strong> i molnet. Annars
+              ligger det kvar bara i den här webbläsarsessionen.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="save-guest__close"
+            aria-label="Stäng"
+            onClick={onClose}
+          >
+            ×
+          </button>
         </header>
 
         {status === 'sent' ? (
@@ -150,13 +165,7 @@ export function SaveGuestDialog({ treeName, onClose, onSignedIn }: Props) {
               {submitLabel}
             </button>
           </div>
-        ) : (
-          <div className="save-guest__actions">
-            <button type="button" className="ghost" onClick={onClose}>
-              Stäng
-            </button>
-          </div>
-        )}
+        ) : null}
 
         {status !== 'sent' ? (
           <p className="save-guest__switch">

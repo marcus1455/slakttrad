@@ -4,6 +4,7 @@ import TreeApp from './App'
 import { AuthCallbackPage } from './AuthCallbackPage'
 import { FallbackToNew, NewTreeRedirect } from './NewTreeRedirect'
 import { AuthProvider } from './lib/auth'
+import { ConfirmProvider } from './lib/confirm'
 import { DEFAULT_TREE_SLUG } from './lib/supabase'
 
 function EditTreePage() {
@@ -19,17 +20,19 @@ function ShareTreePage() {
 export function AppRouter() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<NewTreeRedirect />} />
-          <Route path="/gast" element={<TreeApp mode="guest" />} />
-          <Route path="/konto/*" element={<AccountPage />} />
-          <Route path="/auth/callback" element={<AuthCallbackPage />} />
-          <Route path="/trad/:slug" element={<EditTreePage />} />
-          <Route path="/dela/:token" element={<ShareTreePage />} />
-          <Route path="*" element={<FallbackToNew />} />
-        </Routes>
-      </BrowserRouter>
+      <ConfirmProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<NewTreeRedirect />} />
+            <Route path="/gast" element={<TreeApp mode="guest" />} />
+            <Route path="/konto/*" element={<AccountPage />} />
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
+            <Route path="/trad/:slug" element={<EditTreePage />} />
+            <Route path="/dela/:token" element={<ShareTreePage />} />
+            <Route path="*" element={<FallbackToNew />} />
+          </Routes>
+        </BrowserRouter>
+      </ConfirmProvider>
     </AuthProvider>
   )
 }

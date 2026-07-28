@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createBlankFamily } from '../data/blank'
-import { addChild, addPartner } from './relations'
+import { addChild, addPartner, soleSpouseId } from './relations'
 
 describe('addChild', () => {
   it('links only to the chosen parent by default', () => {
@@ -48,5 +48,14 @@ describe('addChild', () => {
     expect(store.nodes.find((n) => n.id === linneaId)!.children.some((c) => c.id === ingerId)).toBe(
       true,
     )
+  })
+
+  it('soleSpouseId returns the only partner', () => {
+    let store = createBlankFamily('Linnea')
+    const linneaId = store.rootId
+    store = addPartner(store, linneaId, { name: 'Harry', gender: 'male' })
+    const harryId = Object.keys(store.profiles).find((id) => id !== linneaId)!
+    expect(soleSpouseId(store, harryId)).toBe(linneaId)
+    expect(soleSpouseId(store, linneaId)).toBe(harryId)
   })
 })

@@ -153,7 +153,14 @@
   font-weight: 500;
 }
 
-.share-dialog__card header p {
+.share-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.share-dialog__header p {
   margin: 0;
   font-family: var(--font-ui);
   font-size: 0.72rem;
@@ -163,11 +170,33 @@
   color: var(--muted);
 }
 
-.share-dialog__card header h3 {
+.share-dialog__header h3 {
   margin: 0.2rem 0 0;
   font-family: var(--font-display);
   font-size: 1.25rem;
   font-weight: 600;
+  color: var(--ink);
+}
+
+.share-dialog__close {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  margin: -0.25rem -0.35rem 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.45rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.share-dialog__close:hover {
+  background: color-mix(in srgb, var(--muted) 10%, transparent);
   color: var(--ink);
 }
 
@@ -219,6 +248,29 @@
   cursor: pointer;
 }
 
+.share-dialog__quiet {
+  align-self: flex-start;
+  padding: 0.25rem 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
+
+.share-dialog__quiet:hover {
+  color: var(--ink);
+}
+
+.share-dialog__quiet:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .share-dialog__field input[type='email'] {
   width: 100%;
   box-sizing: border-box;
@@ -229,41 +281,6 @@
   color: var(--ink);
   font-family: var(--font-ui);
   font-size: 0.82rem;
-}
-
-.share-dialog__actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.share-dialog__actions button {
-  flex: 1;
-  padding: 0.7rem 0.8rem;
-  border: 1px solid var(--teal);
-  border-radius: var(--radius);
-  background: var(--teal);
-  color: #f7faf7;
-  font-family: var(--font-ui);
-  font-size: 0.88rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.share-dialog__actions button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.share-dialog__actions button.ghost {
-  background: #fff;
-  border-color: var(--border);
-  color: var(--ink);
-}
-
-.share-dialog__actions button.danger {
-  color: var(--danger);
-  border-color: rgba(139, 46, 46, 0.3);
-  background: rgba(139, 46, 46, 0.06);
 }
 
 .share-dialog__error {

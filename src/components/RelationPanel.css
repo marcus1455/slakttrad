@@ -1,0 +1,223 @@
+.relation-panel {
+  position: absolute;
+  z-index: 10;
+  top: 0;
+  right: 0;
+  width: min(380px, 100%);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  border-left: 1px solid var(--border-soft);
+  backdrop-filter: blur(14px);
+  box-shadow: -18px 0 40px rgba(28, 36, 28, 0.08);
+  overflow: hidden;
+  animation: relation-slide-in 220ms ease;
+}
+
+@keyframes relation-slide-in {
+  from {
+    transform: translateX(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.relation-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 1.25rem 1.35rem 1rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.relation-panel__eyebrow {
+  margin: 0 0 0.2rem;
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.relation-panel__header h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.relation-panel__lead {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.relation-panel__name-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--teal);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.relation-panel__name-link:hover {
+  color: var(--ink);
+}
+
+.relation-panel__pair-text strong {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.relation-panel__pair-text strong .relation-panel__name-link {
+  font-weight: 600;
+}
+
+.relation-panel__close {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  margin: -0.25rem -0.35rem 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.45rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.relation-panel__close:hover {
+  background: color-mix(in srgb, var(--muted) 10%, transparent);
+  color: var(--ink);
+}
+
+.relation-panel__body {
+  flex: 1;
+  overflow: auto;
+  padding: 1rem 1.35rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.relation-panel__people {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.relation-panel__person {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 88%, var(--paper));
+  color: var(--ink);
+  border-radius: 12px;
+  padding: 11px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.relation-panel__person:hover {
+  border-color: color-mix(in srgb, var(--teal) 45%, var(--border));
+}
+
+.relation-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.relation-panel select {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 9px 11px;
+  font: inherit;
+}
+
+.relation-panel__primary,
+.relation-panel__danger,
+.relation-panel__danger-sm {
+  border: 0;
+  border-radius: 12px;
+  padding: 11px 14px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.relation-panel__primary {
+  background: var(--teal);
+  color: #fff;
+}
+
+.relation-panel__danger {
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+  color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--border));
+}
+
+.relation-panel__danger-sm {
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+  color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 24%, var(--border));
+}
+
+.relation-panel__empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.relation-panel__pair {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 90%, var(--paper));
+}
+
+.relation-panel__pair-text strong {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.relation-panel__pair-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .relation-panel {
+    width: 100%;
+  }
+}

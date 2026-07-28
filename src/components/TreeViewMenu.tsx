@@ -2,15 +2,30 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FamilyStore } from '../types'
 import type { TreeView } from '../lib/treeView'
 import { listSurnames, viewLabel } from '../lib/treeView'
+import type { LayoutMode } from '../lib/layout'
 import './TreeViewMenu.css'
 
 type Props = {
   store: FamilyStore
   view: TreeView
   onChange: (view: TreeView) => void
+  layoutMode: LayoutMode
+  onChangeLayoutMode: (mode: LayoutMode) => void
 }
 
-export function TreeViewMenu({ store, view, onChange }: Props) {
+const LAYOUT_OPTIONS: { mode: LayoutMode; label: string; hint: string }[] = [
+  { mode: 'full', label: 'Fullt träd', hint: 'Alla kopplingar' },
+  { mode: 'pedigree', label: 'Anor', hint: 'Pedigree från centrum' },
+  { mode: 'fan', label: 'Solfjäder', hint: 'Anor i solfjäder' },
+]
+
+export function TreeViewMenu({
+  store,
+  view,
+  onChange,
+  layoutMode,
+  onChangeLayoutMode,
+}: Props) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const surnames = useMemo(() => listSurnames(store), [store])
@@ -31,12 +46,20 @@ export function TreeViewMenu({ store, view, onChange }: Props) {
     }
   }, [open])
 
-  const select = (next: TreeView) => {
+  const selectView = (next: TreeView) => {
     onChange(next)
     setOpen(false)
   }
 
+  const selectLayout = (mode: LayoutMode) => {
+    onChangeLayoutMode(mode)
+    setOpen(false)
+  }
+
   const activeLabel = viewLabel(view)
+  const layoutLabel =
+    LAYOUT_OPTIONS.find((o) => o.mode === layoutMode)?.label ?? 'Fullt träd'
+  const filtered = view.type !== 'all' || layoutMode !== 'full'
 
   return (
     <div className="tree-view-menu" ref={rootRef}>
@@ -45,12 +68,12 @@ export function TreeViewMenu({ store, view, onChange }: Props) {
         className={[
           'app__tool app__tool--icon',
           open ? 'app__tool--active' : '',
-          view.type !== 'all' ? 'app__tool--filtered' : '',
+          filtered ? 'app__tool--filtered' : '',
         ]
           .filter(Boolean)
           .join(' ')}
-        title={`Vy: ${activeLabel}`}
-        aria-label={`Trädvy: ${activeLabel}`}
+        title={`Layout: ${layoutLabel} · Filter: ${activeLabel}`}
+        aria-label={`Trädvy: ${layoutLabel}, ${activeLabel}`}
         aria-expanded={open}
         aria-haspopup="menu"
         onClick={() => setOpen((v) => !v)}
@@ -80,13 +103,28 @@ export function TreeViewMenu({ store, view, onChange }: Props) {
 
       {open ? (
         <div className="tree-view-menu__panel" role="menu">
-          <p className="tree-view-menu__heading">Vy</p>
+          <p className="tree-view-menu__heading">Layout</p>
+          {LAYOUT_OPTIONS.map((opt) => (
+            <button
+              key={opt.mode}
+              type="button"
+              role="menuitemradio"
+              aria-checked={layoutMode === opt.mode}
+              className={layoutMode === opt.mode ? 'is-active' : ''}
+              onClick={() => selectLayout(opt.mode)}
+            >
+              <span className="tree-view-menu__label">{opt.label}</span>
+              <span className="tree-view-menu__hint">{opt.hint}</span>
+            </button>
+          ))}
+
+          <p className="tree-view-menu__heading">Filter</p>
           <button
             type="button"
             role="menuitemradio"
             aria-checked={view.type === 'all'}
             className={view.type === 'all' ? 'is-active' : ''}
-            onClick={() => select({ type: 'all' })}
+            onClick={() => selectView({ type: 'all' })}
           >
             Hela trädet
           </button>
@@ -95,7 +133,7 @@ export function TreeViewMenu({ store, view, onChange }: Props) {
             role="menuitemradio"
             aria-checked={view.type === 'near'}
             className={view.type === 'near' ? 'is-active' : ''}
-            onClick={() => select({ type: 'near' })}
+            onClick={() => selectView({ type: 'near' })}
           >
             Nära centrum
           </button>
@@ -113,7 +151,7 @@ export function TreeViewMenu({ store, view, onChange }: Props) {
                     role="menuitemradio"
                     aria-checked={active}
                     className={active ? 'is-active' : ''}
-                    onClick={() => select({ type: 'surname', surname })}
+                    onClick={() => selectView({ type: 'surname', surname })}
                   >
                     {surname}
                   </button>
