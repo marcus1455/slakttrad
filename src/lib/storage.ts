@@ -34,6 +34,12 @@ export type TreeSummary = {
   slug: string
   name: string
   role: TreeAccessRole
+  updatedAt?: string
+  personCount: number
+  /** Optional cover image for dashboard tiles. */
+  coverUrl?: string | null
+  /** Lightweight gender markers for dashboard previews. */
+  previewGenders: Array<'male' | 'female'>
 }
 
 function newSlug() {
@@ -176,6 +182,27 @@ export async function createFamilyFromStore(
   return rowToLoaded(data as FamilyTreeRow)
 }
 
+function summarizeNodes(nodes: unknown): {
+  personCount: number
+  previewGenders: Array<'male' | 'female'>
+} {
+  if (!Array.isArray(nodes)) return { personCount: 0, previewGenders: [] }
+  const previewGenders: Array<'male' | 'female'> = []
+  for (const raw of nodes) {
+    const gender =
+      raw && typeof raw === 'object' && 'gender' in raw
+        ? (raw as { gender?: string }).gender
+        : undefined
+    if (gender === 'male' || gender === 'female') {
+      previewGenders.push(gender)
+    }
+  }
+  return {
+    personCount: nodes.length,
+    previewGenders: previewGenders.slice(0, 48),
+  }
+}
+
 export async function listMyTrees(): Promise<TreeSummary[]> {
   const {
     data: { user },
@@ -188,11 +215,13 @@ export async function listMyTrees(): Promise<TreeSummary[]> {
     await Promise.all([
       supabase
         .from('family_trees')
-        .select('id, slug, name, updated_at')
+        .select('id, slug, name, updated_at, nodes, cover_url')
         .eq('owner_id', user.id),
       supabase
         .from('tree_collaborators')
-        .select('tree_id, role, family_trees ( id, slug, name, updated_at )')
+        .select(
+          'tree_id, role, family_trees ( id, slug, name, updated_at, nodes, cover_url )',
+        )
         .or(
           email
             ? `user_id.eq.${user.id},email.eq.${JSON.stringify(email)}`
@@ -205,41 +234,90 @@ export async function listMyTrees(): Promise<TreeSummary[]> {
 
   const byId = new Map<string, TreeSummary & { updated_at?: string }>()
   for (const row of owned ?? []) {
+    const stats = summarizeNodes(row.nodes)
     byId.set(row.id, {
       id: row.id as string,
       slug: row.slug as string,
       name: row.name as string,
       role: 'owner',
       updated_at: row.updated_at as string | undefined,
+      updatedAt: row.updated_at as string | undefined,
+      personCount: stats.personCount,
+      coverUrl: (row.cover_url as string | null | undefined) ?? null,
+      previewGenders: stats.previewGenders,
     })
   }
   for (const row of collab ?? []) {
     const nested = row.family_trees as unknown
     const t = (Array.isArray(nested) ? nested[0] : nested) as
-      | { id: string; slug: string; name: string; updated_at?: string }
+      | {
+          id: string
+          slug: string
+          name: string
+          updated_at?: string
+          nodes?: unknown
+          cover_url?: string | null
+        }
       | null
       | undefined
     const accessRole: TreeAccessRole =
       row.role === 'viewer' ? 'viewer' : 'editor'
     if (t?.id && !byId.has(t.id)) {
+      const stats = summarizeNodes(t.nodes)
       byId.set(t.id, {
         id: t.id,
         slug: t.slug,
         name: t.name,
         role: accessRole,
         updated_at: t.updated_at,
+        updatedAt: t.updated_at,
+        personCount: stats.personCount,
+        coverUrl: t.cover_url ?? null,
+        previewGenders: stats.previewGenders,
       })
     }
   }
 
   return [...byId.values()]
     .sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? ''))
-    .map(({ id, slug, name, role }) => ({ id, slug, name, role }))
+    .map(
+      ({
+        id,
+        slug,
+        name,
+        role,
+        updatedAt,
+        personCount,
+        coverUrl,
+        previewGenders,
+      }) => ({
+        id,
+        slug,
+        name,
+        role,
+        updatedAt,
+        personCount,
+        coverUrl,
+        previewGenders,
+      }),
+    )
 }
 
 /** Permanently delete a tree. Only the owner can delete (enforced by RLS). */
 export async function deleteFamilyTree(treeId: string): Promise<void> {
   const { error } = await supabase.from('family_trees').delete().eq('id', treeId)
+  if (error) throw error
+}
+
+/** Set or clear the dashboard cover image for a tree. */
+export async function setTreeCoverUrl(
+  treeId: string,
+  coverUrl: string | null,
+): Promise<void> {
+  const { error } = await supabase
+    .from('family_trees')
+    .update({ cover_url: coverUrl })
+    .eq('id', treeId)
   if (error) throw error
 }
 

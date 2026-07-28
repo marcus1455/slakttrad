@@ -657,5 +657,12 @@ describe('layoutFullTree', () => {
 
     expect(layout.width).toBeLessThan(before.width * 1.35)
     expect(overlaps(layout, 'inger', 'goran')).toBe(false)
+
+    // Parent couples must stay near each other — adding a natal sibling
+    // must not shove Harry/Linnea and Anna/David to opposite edges.
+    const mid = (a: string, b: string) =>
+      (p[a]!.x + p[b]!.x) / 2 + OPTS.nodeWidth / 2
+    const parentGap = Math.abs(mid('harry', 'linnea') - mid('anna', 'david'))
+    expect(parentGap).toBeLessThan(OPTS.nodeWidth * 5)
   })
 })

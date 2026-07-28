@@ -106,7 +106,11 @@ function assignGenerations(nodes: readonly Node[]): Map<string, number> {
       if (bump(node.id, floor)) changed = true
     }
 
-    // Parents of people on the same row (esp. in-laws of a couple) align.
+    // Parents of a married couple on the same row align (mormor with farmor).
+    // Do NOT align every parent of everyone on the row — that incorrectly equates
+    // e.g. Susanne with Örjan when Susanne's kids share a generation with
+    // Camilla, causing an unbounded generation climb (guard limit) and leaving
+    // spouses like Marcus/Sofia on different rows.
     const byGen = new Map<number, string[]>()
     for (const node of nodes) {
       const g = gen.get(node.id) ?? 0
@@ -115,18 +119,25 @@ function assignGenerations(nodes: readonly Node[]): Map<string, number> {
       else byGen.set(g, [node.id])
     }
     for (const ids of byGen.values()) {
-      const parentIds = new Set<string>()
+      const idSet = new Set(ids)
       for (const id of ids) {
         const node = map.get(id)!
-        for (const p of node.parents) {
-          if (map.has(p.id)) parentIds.add(p.id)
+        for (const spouse of node.spouses) {
+          if (!idSet.has(spouse.id)) continue
+          if (id > spouse.id) continue
+          const spouseNode = map.get(spouse.id)
+          if (!spouseNode) continue
+          const parentIds = [
+            ...node.parents.map((p) => p.id),
+            ...spouseNode.parents.map((p) => p.id),
+          ].filter((pid) => map.has(pid))
+          if (parentIds.length < 2) continue
+          let target = 0
+          for (const pid of parentIds) target = Math.max(target, gen.get(pid) ?? 0)
+          for (const pid of parentIds) {
+            if (bump(pid, target)) changed = true
+          }
         }
-      }
-      if (parentIds.size < 2) continue
-      let target = 0
-      for (const pid of parentIds) target = Math.max(target, gen.get(pid) ?? 0)
-      for (const pid of parentIds) {
-        if (bump(pid, target)) changed = true
       }
     }
 
@@ -631,18 +642,53 @@ function expandParentsForChildren(
 
   /** How much horizontal room each parent-family key needs for its kids. */
   const childHalf = new Map<string, number>()
-  const bridges: { leftKey: string; rightKey: string; width: number }[] = []
+
+  const bumpChildHalf = (parentPairKey: string, half: number) => {
+    for (const [famKey, famUnits] of parentFamilies) {
+      const hit = parentPairKey
+        .split('+')
+        .some((pid) => famUnits.some((u) => u.members.includes(pid)))
+      if (hit) {
+        childHalf.set(famKey, Math.max(childHalf.get(famKey) ?? 0, half))
+      }
+    }
+  }
 
   for (const [childKey, units] of childFamilies) {
     const childWidth = measureFamily(units, nodeWidth, coupleGap, unitGap)
     if (childKey.startsWith('bridge:')) {
       const parts = childKey.slice('bridge:'.length).split('~').sort()
       if (parts.length === 2) {
-        bridges.push({
-          leftKey: parts[0]!,
-          rightKey: parts[1]!,
-          width: childWidth,
-        })
+        const leftNatalKey = parts[0]!
+        const rightNatalKey = parts[1]!
+        const coupleUnits: Unit[] = []
+        const leftUnits: Unit[] = []
+        const rightUnits: Unit[] = []
+
+        for (const unit of units) {
+          const keys = bloodParentKeys(unit, map)
+          if (keys.length >= 2) {
+            coupleUnits.push(unit)
+            continue
+          }
+          const natal = parentKey(map.get(unit.primary)!, map)
+          if (natal === leftNatalKey) leftUnits.push(unit)
+          else if (natal === rightNatalKey) rightUnits.push(unit)
+          else coupleUnits.push(unit)
+        }
+
+        const measure = (list: Unit[]) =>
+          list.length ? measureFamily(list, nodeWidth, coupleGap, unitGap) : 0
+        const coupleW = measure(coupleUnits)
+        const leftW = measure(leftUnits)
+        const rightW = measure(rightUnits)
+        const leftGap = leftW > 0 && coupleW > 0 ? unitGap : 0
+        const rightGap = rightW > 0 && coupleW > 0 ? unitGap : 0
+        // Each parent side claims its natal siblings + half the married couple.
+        // Do NOT also add the full bridge width between the parents (that
+        // double-counted absorbed siblings and blew couples apart).
+        bumpChildHalf(leftNatalKey, leftW + leftGap + coupleW / 2)
+        bumpChildHalf(rightNatalKey, coupleW / 2 + rightGap + rightW)
       }
       continue
     }
@@ -663,20 +709,6 @@ function expandParentsForChildren(
     }
     for (const nk of natalKeys) {
       childHalf.set(nk, Math.max(childHalf.get(nk) ?? 0, childWidth / 2))
-    }
-  }
-
-  for (const bridge of bridges) {
-    for (const pkey of [bridge.leftKey, bridge.rightKey]) {
-      for (const [famKey, famUnits] of parentFamilies) {
-        const hit = pkey
-          .split('+')
-          .some((pid) => famUnits.some((u) => u.members.includes(pid)))
-        if (hit) {
-          // Reserve half the bridge on each side via extra spacing below
-          childHalf.set(famKey, Math.max(childHalf.get(famKey) ?? 0, 0))
-        }
-      }
     }
   }
 
@@ -714,43 +746,13 @@ function expandParentsForChildren(
 
   places.sort((a, b) => a.center - b.center || a.key.localeCompare(b.key, 'sv'))
 
-  const bridgeExtra = (left: Place, right: Place) => {
-    let extra = 0
-    for (const b of bridges) {
-      const leftHit = b.leftKey
-        .split('+')
-        .some((pid) =>
-          parentFamilies.get(left.key)?.some((u) => u.members.includes(pid)),
-        )
-      const rightHit = b.rightKey
-        .split('+')
-        .some((pid) =>
-          parentFamilies.get(right.key)?.some((u) => u.members.includes(pid)),
-        )
-      const leftHitSwap = b.rightKey
-        .split('+')
-        .some((pid) =>
-          parentFamilies.get(left.key)?.some((u) => u.members.includes(pid)),
-        )
-      const rightHitSwap = b.leftKey
-        .split('+')
-        .some((pid) =>
-          parentFamilies.get(right.key)?.some((u) => u.members.includes(pid)),
-        )
-      if ((leftHit && rightHit) || (leftHitSwap && rightHitSwap)) {
-        extra += b.width + familyGap
-      }
-    }
-    return extra
-  }
-
   for (let iter = 0; iter < Math.max(8, places.length * 6); iter++) {
     let moved = false
     for (let i = 1; i < places.length; i++) {
       const prev = places[i - 1]!
       const cur = places[i]!
-      const need =
-        prev.halfChild + familyGap + cur.halfChild + bridgeExtra(prev, cur)
+      // Bridge halves are already in halfChild — no extra full-width gap.
+      const need = prev.halfChild + familyGap + cur.halfChild
       const gap = cur.center - prev.center
       if (gap + 0.01 < need) {
         const shift = (need - gap) / 2

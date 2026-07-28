@@ -1,12 +1,13 @@
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
+import { DashboardPage } from './DashboardPage'
 import { LoadingScreen } from './components/LoadingScreen'
 import { useAuth } from './lib/auth'
 import './WelcomeGate.css'
 
 type AuthMode = 'login' | 'register'
 
-/** `/` shows welcome gate when signed out; signed-in users go to account hub. */
+/** `/` — welcome when signed out, dashboard (pick a tree) when signed in. */
 export function NewTreeRedirect() {
   const { user, loading, signInWithPassword, signUpWithPassword } = useAuth()
   const [mode, setMode] = useState<AuthMode>('login')
@@ -21,7 +22,7 @@ export function NewTreeRedirect() {
   }
 
   if (user) {
-    return <Navigate to="/konto" replace />
+    return <DashboardPage />
   }
 
   const submitLabel =
@@ -54,7 +55,7 @@ export function NewTreeRedirect() {
             setStatus('sending')
             setFormError(null)
             try {
-              sessionStorage.setItem('auth_next', '/konto')
+              sessionStorage.setItem('auth_next', '/')
               if (mode === 'register') {
                 if (password.length < 6) {
                   throw new Error('Lösenordet måste vara minst 6 tecken')

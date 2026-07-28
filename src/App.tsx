@@ -67,7 +67,9 @@ import {
 } from './lib/guestTree'
 import { supabase } from './lib/supabase'
 import { avatarUrlForUserInTree, personProfileForUser } from './lib/userDisplay'
+import { markTreeOpened } from './lib/recentTrees'
 import { nodesForView, type TreeView } from './lib/treeView'
+
 import type { FamilyStore, TreeMeta } from './types'
 import './App.css'
 import './print.css'
@@ -386,6 +388,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
         setStatus('ready')
         setError(null)
         writeTreeNameCache(loaded.meta.slug, loaded.meta.name)
+        if (!shareToken) markTreeOpened(loaded.meta.slug)
         document.title = `Släktträd · ${loaded.meta.name}`
       } catch (err) {
         if (cancelled) return

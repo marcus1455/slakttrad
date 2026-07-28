@@ -169,7 +169,7 @@ export function AuthMenu({ showLabel = false, avatarUrl: avatarOverride }: Props
               </div>
             </div>
             <Link
-              to="/konto/profil"
+              to="/konto"
               className="auth-menu__nav"
               role="menuitem"
               onClick={() => setOpen(false)}
@@ -178,13 +178,13 @@ export function AuthMenu({ showLabel = false, avatarUrl: avatarOverride }: Props
               <span>Kontoinställningar</span>
             </Link>
             <Link
-              to="/konto/trad"
+              to="/"
               className="auth-menu__nav"
               role="menuitem"
               onClick={() => setOpen(false)}
             >
               <TreesIcon />
-              <span>Se mina träd</span>
+              <span>Mina träd</span>
             </Link>
             <button
               type="button"

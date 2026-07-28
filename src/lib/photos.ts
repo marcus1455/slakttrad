@@ -38,6 +38,12 @@ export async function uploadAccountAvatar(userId: string, file: File): Promise<s
   return uploadPhoto(path, file)
 }
 
+export async function uploadTreeCover(treeSlug: string, file: File): Promise<string> {
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+  const path = `covers/${treeSlug}/${Date.now()}.${ext}`
+  return uploadPhoto(path, file)
+}
+
 export async function removePersonPhoto(photoUrl: string): Promise<void> {
   const marker = `/object/public/${BUCKET}/`
   const idx = photoUrl.indexOf(marker)
