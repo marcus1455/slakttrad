@@ -56,10 +56,35 @@ import './print.css'
 
 const NODE_WIDTH = 216
 const NODE_HEIGHT = 108
+const TREE_NAME_CACHE_KEY = 'slakttrad-tree-names'
 
 function firstName(fullName: string | undefined, fallback: string) {
   if (!fullName?.trim()) return fallback
   return fullName.trim().split(/\s+/)[0] ?? fallback
+}
+
+function readTreeNameCache(slug: string | undefined): string | null {
+  if (!slug) return null
+  try {
+    const raw = sessionStorage.getItem(TREE_NAME_CACHE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Record<string, string>
+    const value = parsed[slug]
+    return typeof value === 'string' && value.trim() ? value : null
+  } catch {
+    return null
+  }
+}
+
+function writeTreeNameCache(slug: string, name: string) {
+  try {
+    const raw = sessionStorage.getItem(TREE_NAME_CACHE_KEY)
+    const parsed = raw ? (JSON.parse(raw) as Record<string, string>) : {}
+    parsed[slug] = name
+    sessionStorage.setItem(TREE_NAME_CACHE_KEY, JSON.stringify(parsed))
+  } catch {
+    // Ignore storage failures; the loading screen can fall back to a generic title.
+  }
 }
 
 export type TreeAppProps = {
@@ -204,6 +229,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
         setSelectedId(null)
         setStatus('ready')
         setError(null)
+        writeTreeNameCache(loaded.meta.slug, loaded.meta.name)
         document.title = `Släktträd · ${loaded.meta.name}`
       } catch (err) {
         if (cancelled) return
@@ -499,9 +525,11 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
         </div>
       )
     }
+    const loadingTitle =
+      (isGuestMode ? meta?.name : readTreeNameCache(slug)) || 'Släktträd'
     return (
       <LoadingScreen
-        title={slug ? slug.charAt(0).toUpperCase() + slug.slice(1) : 'Släktträd'}
+        title={loadingTitle}
         message="Laddar släktträd"
       />
     )
@@ -528,6 +556,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
             readOnly={readOnly}
             onRename={(name) => {
               setMeta((prev) => (prev ? { ...prev, name } : prev))
+              writeTreeNameCache(meta.slug, name)
               document.title = `Släktträd · ${name}`
             }}
           />
@@ -751,7 +780,13 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
             store={store}
             selectedId={selectedId}
             treeSlug={meta.slug}
+            treeId={meta.id}
             readOnly={readOnly}
+            canInvitePerson={
+              !!user &&
+              !readOnly &&
+              (meta.ownerId == null || meta.ownerId === user.id)
+            }
             relationLabel={selectedRelation}
             onChange={onChange}
             onClose={() => setSelectedId(null)}

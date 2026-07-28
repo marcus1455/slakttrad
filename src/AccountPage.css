@@ -52,11 +52,44 @@
   gap: 1.75rem;
 }
 
+.account-page__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.account-page__tab {
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted);
+  text-decoration: none;
+  font-family: var(--font-ui);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.account-page__tab--active {
+  border-color: var(--teal);
+  background: var(--teal);
+  color: #f7faf7;
+}
+
 .account-page__profile {
   display: grid;
   grid-template-columns: auto 1fr auto;
   gap: 1rem;
   align-items: center;
+  padding: 1.15rem 1.25rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.account-page__settings,
+.account-page__trees {
   padding: 1.15rem 1.25rem;
   border: 1px solid var(--border-soft);
   border-radius: 18px;
@@ -85,6 +118,45 @@
   border-radius: 50%;
   object-fit: cover;
   background: var(--teal-soft);
+}
+
+.account-page__avatar-button {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.account-page__avatar-input {
+  display: none;
+}
+
+.account-page__avatar-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem;
+  background: rgba(28, 36, 28, 0.58);
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.account-page__avatar-button:hover .account-page__avatar-overlay,
+.account-page__avatar-button:focus-visible .account-page__avatar-overlay {
+  opacity: 1;
 }
 
 .account-page__avatar--initials {
@@ -123,6 +195,37 @@
   margin-bottom: 0.85rem;
 }
 
+.account-page__settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.account-page__settings-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #4a574c;
+}
+
+.account-page__settings-form input,
+.account-page__settings-form select {
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+
+.account-page__settings-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
 .account-page__trees-head h2 {
   margin: 0;
   font-family: var(--font-display);
@@ -143,7 +246,9 @@
 }
 
 .account-page__empty,
-.account-page__error {
+.account-page__error,
+.account-page__hint,
+.account-page__ok {
   margin: 0;
   font-size: 0.9rem;
   line-height: 1.45;
@@ -152,7 +257,11 @@
 
 .account-page__error {
   color: var(--danger);
-  margin-bottom: 0.75rem;
+}
+
+.account-page__ok {
+  color: var(--teal);
+  font-weight: 600;
 }
 
 .account-page__list {

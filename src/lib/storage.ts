@@ -1,9 +1,10 @@
 import type { Node } from 'relatives-tree/lib/types'
 import { createBlankFamily } from '../data/blank'
 import { SEED_FAMILY } from '../data/seed'
-import type { FamilyStore, LoadedTree, PersonProfile, TreeMeta } from '../types'
+import type { FamilyStore, Gender, LoadedTree, PersonProfile, TreeMeta } from '../types'
 import { normalizeProfileNicknames } from './personName'
 import { DEFAULT_TREE_SLUG, supabase } from './supabase'
+import { avatarUrlFromUser, displayNameFromUser } from './userDisplay'
 
 type FamilyTreeRow = {
   id: string
@@ -98,7 +99,31 @@ export async function loadFamilyBySlug(slug: string): Promise<LoadedTree> {
 export async function createNewFamily(
   treeName = 'Mitt släktträd',
 ): Promise<LoadedTree> {
-  return createFamilyFromStore(createBlankFamily('Jag'), treeName)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    throw new Error('Du måste vara inloggad för att skapa ett nytt träd')
+  }
+
+  const starterName = displayNameFromUser(user)
+  const starterPhoto = avatarUrlFromUser(user)
+  const meta = user.user_metadata ?? {}
+  const starterGender: Gender =
+    meta.starter_gender === 'male' || meta.starter_gender === 'female'
+      ? meta.starter_gender
+      : 'female'
+  const store = createBlankFamily(starterName, {
+    birthYear:
+      typeof meta.starter_birth_year === 'string' ? meta.starter_birth_year.trim() : '',
+    email: user.email ?? '',
+    nickname:
+      typeof meta.starter_nickname === 'string' ? meta.starter_nickname.trim() : '',
+    photoUrl: starterPhoto ?? undefined,
+    phone: typeof meta.starter_phone === 'string' ? meta.starter_phone.trim() : '',
+    gender: starterGender,
+  })
+  return createFamilyFromStore(store, treeName)
 }
 
 /** Persist an existing in-memory store as a new owned cloud tree. */

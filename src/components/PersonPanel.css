@@ -219,6 +219,53 @@
   line-height: 1.45;
 }
 
+.person-panel__claim-note,
+.person-panel__ok,
+.person-panel__invite p {
+  margin: 0;
+  font-family: 'Figtree', system-ui, sans-serif;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.person-panel__claim-note {
+  color: #2f5d50;
+  font-weight: 600;
+}
+
+.person-panel__ok {
+  color: #2f5d50;
+  font-weight: 600;
+}
+
+.person-panel__invite {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid rgba(47, 93, 80, 0.14);
+  border-radius: 12px;
+  background: rgba(47, 93, 80, 0.06);
+}
+
+.person-panel__invite button {
+  align-self: flex-start;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #2f5d50;
+  border-radius: 10px;
+  background: #2f5d50;
+  color: #f7faf7;
+  font-family: 'Figtree', system-ui, sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.person-panel__invite button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .person-panel__actions {
   display: flex;
   gap: 0.5rem;

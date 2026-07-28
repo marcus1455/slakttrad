@@ -1,4 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react'
+import { useAuth } from '../lib/auth'
+import { inviteTreeCollaborator } from '../lib/storage'
 import type { FamilyStore, Gender } from '../types'
 import { removePersonPhoto, uploadPersonPhoto } from '../lib/photos'
 import { personLifeLabel } from '../lib/personLife'
@@ -17,7 +19,9 @@ type Props = {
   store: FamilyStore
   selectedId: string
   treeSlug: string
+  treeId?: string
   readOnly?: boolean
+  canInvitePerson?: boolean
   relationLabel?: string | null
   onChange: (next: FamilyStore) => void
   onClose: () => void
@@ -35,6 +39,10 @@ const emptyForm = {
   birthYear: '',
   occupation: '',
   gender: 'female' as Gender,
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
 function patch(
@@ -64,7 +72,9 @@ export function PersonPanel({
   store,
   selectedId,
   treeSlug,
+  treeId,
   readOnly = false,
+  canInvitePerson = false,
   relationLabel,
   onChange,
   onClose,
@@ -73,6 +83,7 @@ export function PersonPanel({
   onPersonCreated,
   onPersonDeleted,
 }: Props) {
+  const { user } = useAuth()
   const profile = store.profiles[selectedId]
   const node = store.nodes.find((n) => n.id === selectedId)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -81,6 +92,8 @@ export function PersonPanel({
   const [error, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
+  const [inviteBusy, setInviteBusy] = useState(false)
+  const [inviteOk, setInviteOk] = useState<string | null>(null)
 
   if (!profile || !node) return null
 
@@ -168,6 +181,29 @@ export function PersonPanel({
     !isDeceased && (Boolean(profile.email?.trim()) || !readOnly)
   const showPhone =
     !isDeceased && (Boolean(profile.phone?.trim()) || !readOnly)
+  const normalizedEmail = profile.email?.trim().toLowerCase() ?? ''
+  const hasValidEmail = isValidEmail(normalizedEmail)
+  const canInviteThisPerson =
+    !readOnly && canInvitePerson && !!treeId && hasValidEmail
+  const isCurrentUsersProfile =
+    hasValidEmail && normalizedEmail === user?.email?.trim().toLowerCase()
+
+  const onInvitePerson = async () => {
+    if (!treeId || !hasValidEmail) return
+    setInviteBusy(true)
+    setInviteOk(null)
+    setError(null)
+    try {
+      await inviteTreeCollaborator(treeId, normalizedEmail, 'editor')
+      setInviteOk(
+        `Inbjudan skickad till ${normalizedEmail}. När personen loggar in med samma e-post kopplas kontot hit.`,
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Kunde inte bjuda in personen')
+    } finally {
+      setInviteBusy(false)
+    }
+  }
 
   return (
     <aside className="person-panel">
@@ -373,6 +409,24 @@ export function PersonPanel({
               />
             </label>
           ) : null}
+
+          {isCurrentUsersProfile ? (
+            <p className="person-panel__claim-note">Kopplad till det inloggade kontot.</p>
+          ) : null}
+
+          {canInviteThisPerson ? (
+            <div className="person-panel__invite">
+              <button type="button" disabled={inviteBusy} onClick={() => void onInvitePerson()}>
+                {inviteBusy ? 'Bjuder in…' : 'Bjud in denna person'}
+              </button>
+              <p>
+                Personen bjuds in med e-posten ovan och kopplas till den här profilen efter
+                inloggning.
+              </p>
+            </div>
+          ) : null}
+
+          {inviteOk ? <p className="person-panel__ok">{inviteOk}</p> : null}
 
           {showPhone ? (
             <label>
