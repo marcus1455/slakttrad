@@ -1,27 +1,29 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 /**
  * send-invite-email – Supabase Edge Function
  *
- * Can be called in two ways:
+ * Called directly from the client after inviteTreeCollaborator() succeeds.
+ * Payload: { email, meta: { inviteeName, inviterName, treeName, personName, personPhotoUrl } }
  *
- * 1. As a Supabase Auth Hook (Send Email hook) – Supabase calls this automatically
- *    when auth.admin.inviteUserByEmail() is triggered.
- *    Payload: { user: { email, user_metadata }, email_data: { token_hash, email_action_type, site_url } }
- *
- * 2. Directly from the client after inviteTreeCollaborator() succeeds.
- *    Payload: { email: string, meta: InviteMeta }
- *    In this mode we send a "you've been added" notification email (no token needed).
+ * Flow:
+ *   1. Uses Supabase Admin API to invite the user (creates account + generates accept token)
+ *   2. Sends a branded HTML email via Resend with the accept link + optional person photo
  *
  * Required secrets (Supabase Dashboard → Project Settings → Edge Functions → Secrets):
- *   RESEND_API_KEY   – your Resend API key (resend.com)
- *   FROM_EMAIL       – e.g. "Släktträd <no-reply@yourdomain.com>"
- *   SITE_URL         – e.g. "https://slakttrad.se"
+ *   SUPABASE_URL          – your project URL (auto-available in Edge Functions)
+ *   SUPABASE_SERVICE_ROLE_KEY – service role key (auto-available in Edge Functions)
+ *   RESEND_API_KEY        – your Resend API key (resend.com)
+ *   FROM_EMAIL            – e.g. "Släktträd <no-reply@yourdomain.com>"
+ *   SITE_URL              – e.g. "https://slakttrad-two.vercel.app"
  */
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
 const FROM_EMAIL = Deno.env.get('FROM_EMAIL') ?? 'Släktträd <onboarding@resend.dev>'
 const SITE_URL = Deno.env.get('SITE_URL') ?? 'http://localhost:5173'
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
+const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,7 +34,6 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
-
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 })
   }
@@ -44,41 +45,6 @@ serve(async (req) => {
     return new Response('Bad JSON', { status: 400 })
   }
 
-  // ── Mode 1: Auth Hook payload ─────────────────────────────────────────────
-  if ('email_data' in body) {
-    const emailData = body.email_data as Record<string, string> | undefined
-    const emailActionType = emailData?.email_action_type
-
-    // Only handle "invite" — let Supabase handle other auth emails natively
-    if (emailActionType !== 'invite') {
-      return new Response(JSON.stringify({}), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      })
-    }
-
-    const user = body.user as {
-      email?: string
-      user_metadata?: Record<string, string>
-    }
-
-    const toEmail = user.email ?? ''
-    const userMeta = user.user_metadata ?? {}
-    const inviteeName = (userMeta.invitee_name as string | undefined) ?? toEmail
-    const treeName = (userMeta.tree_name as string | undefined) ?? 'ett familjeträd'
-    const inviterName = (userMeta.inviter_name as string | undefined) ?? 'Någon'
-    const personPhotoUrl = userMeta.person_photo_url as string | undefined
-    const personName = userMeta.person_name as string | undefined
-
-    const siteUrl = emailData?.site_url ?? SITE_URL
-    const tokenHash = emailData?.token_hash ?? ''
-    const acceptUrl = `${siteUrl}/auth/confirm?token_hash=${tokenHash}&type=invite&next=/`
-
-    return sendEmail(toEmail, `${inviterName} bjuder in dig till "${treeName}"`,
-      buildInviteHtml({ inviteeName, inviterName, treeName, personName, personPhotoUrl, acceptUrl }))
-  }
-
-  // ── Mode 2: Direct client call ────────────────────────────────────────────
   const toEmail = body.email as string | undefined
   if (!toEmail) {
     return new Response('Missing email', { status: 400 })
@@ -98,25 +64,56 @@ serve(async (req) => {
   const personName = meta.personName
   const personPhotoUrl = meta.personPhotoUrl
 
-  // Direct invites don't have a token — link goes to login page
-  const loginUrl = `${SITE_URL}/logga-in`
+  // ── Step 1: Invite user via Supabase Admin API ────────────────────────────
+  // This creates the account (if it doesn't exist) and generates a secure accept link.
+  const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
 
-  return sendEmail(
+  const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(
     toEmail,
-    `${inviterName} bjuder in dig till "${treeName}"`,
-    buildInviteHtml({
-      inviteeName,
-      inviterName,
-      treeName,
-      personName,
-      personPhotoUrl,
-      acceptUrl: loginUrl,
-      directInvite: true,
-    }),
+    {
+      redirectTo: `${SITE_URL}/`,
+      data: {
+        invited_by: inviterName,
+        tree_name: treeName,
+      },
+    },
   )
-})
 
-async function sendEmail(to: string, subject: string, html: string) {
+  if (inviteError) {
+    // User may already exist — still send a notification email with login link
+    console.warn('Admin invite error (user may exist):', inviteError.message)
+  }
+
+  // Build the accept URL from the invite token if available
+  let acceptUrl = `${SITE_URL}/logga-in`
+  if (inviteData?.user) {
+    // The confirmation link is available via the Supabase admin generateLink API
+    const { data: linkData } = await adminClient.auth.admin.generateLink({
+      type: 'invite',
+      email: toEmail,
+      options: { redirectTo: `${SITE_URL}/` },
+    })
+    if (linkData?.properties?.action_link) {
+      acceptUrl = linkData.properties.action_link
+    }
+  }
+
+  // ── Step 2: Send branded email via Resend ─────────────────────────────────
+  const isExistingUser = !!inviteError
+  const html = buildInviteHtml({
+    inviteeName,
+    inviterName,
+    treeName,
+    personName,
+    personPhotoUrl,
+    acceptUrl,
+    existingUser: isExistingUser,
+  })
+
+  const subject = `${inviterName} bjuder in dig till "${treeName}"`
+
   if (!RESEND_API_KEY) {
     console.warn('RESEND_API_KEY not set — skipping email')
     return new Response(JSON.stringify({ skipped: true }), {
@@ -131,7 +128,7 @@ async function sendEmail(to: string, subject: string, html: string) {
       Authorization: `Bearer ${RESEND_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject, html }),
+    body: JSON.stringify({ from: FROM_EMAIL, to: [toEmail], subject, html }),
   })
 
   if (!res.ok) {
@@ -147,7 +144,7 @@ async function sendEmail(to: string, subject: string, html: string) {
     status: 200,
     headers: { 'Content-Type': 'application/json', ...corsHeaders },
   })
-}
+})
 
 function buildInviteHtml(opts: {
   inviteeName: string
@@ -156,9 +153,9 @@ function buildInviteHtml(opts: {
   personName?: string
   personPhotoUrl?: string
   acceptUrl: string
-  directInvite?: boolean
+  existingUser?: boolean
 }): string {
-  const { inviteeName, inviterName, treeName, personName, personPhotoUrl, acceptUrl, directInvite } = opts
+  const { inviteeName, inviterName, treeName, personName, personPhotoUrl, acceptUrl, existingUser } = opts
 
   const photoSection = personPhotoUrl
     ? `
@@ -173,8 +170,8 @@ function buildInviteHtml(opts: {
       </div>`
     : ''
 
-  const ctaLabel = directInvite ? 'Logga in och se trädet' : 'Acceptera inbjudan'
-  const footerNote = directInvite
+  const ctaLabel = existingUser ? 'Logga in och se trädet' : 'Acceptera inbjudan'
+  const footerNote = existingUser
     ? 'Logga in med den e-postadress som detta mejl skickades till.'
     : 'Länken är giltig i 24 timmar. Om du inte förväntar dig detta mejl kan du ignorera det.'
 
