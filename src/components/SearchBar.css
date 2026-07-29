@@ -20,7 +20,7 @@
   padding: 0.55rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   font-family: var(--font-ui);
   font-size: 0.88rem;
@@ -33,6 +33,9 @@
   left: 0;
   right: 0;
   min-width: 260px;
+  max-height: min(50dvh, calc(100dvh - 5rem));
+  overflow-x: hidden;
+  overflow-y: auto;
   margin: 0;
   padding: 0.3rem;
   list-style: none;

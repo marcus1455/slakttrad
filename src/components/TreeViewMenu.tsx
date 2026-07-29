@@ -11,6 +11,8 @@ type Props = {
   onChange: (view: TreeView) => void
   layoutMode: LayoutMode
   onChangeLayoutMode: (mode: LayoutMode) => void
+  /** When true, only "Nära centrum" is available (person-centric collaborator view). */
+  lockNearFilter?: boolean
 }
 
 const LAYOUT_OPTIONS: { mode: LayoutMode; label: string; hint: string }[] = [
@@ -25,10 +27,14 @@ export function TreeViewMenu({
   onChange,
   layoutMode,
   onChangeLayoutMode,
+  lockNearFilter = false,
 }: Props) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
-  const surnames = useMemo(() => listSurnames(store), [store])
+  const surnames = useMemo(
+    () => (lockNearFilter ? [] : listSurnames(store)),
+    [store, lockNearFilter],
+  )
 
   useEffect(() => {
     if (!open) return
@@ -47,6 +53,7 @@ export function TreeViewMenu({
   }, [open])
 
   const selectView = (next: TreeView) => {
+    if (lockNearFilter && next.type !== 'near') return
     onChange(next)
     setOpen(false)
   }
@@ -119,15 +126,17 @@ export function TreeViewMenu({
           ))}
 
           <p className="tree-view-menu__heading">Filter</p>
-          <button
-            type="button"
-            role="menuitemradio"
-            aria-checked={view.type === 'all'}
-            className={view.type === 'all' ? 'is-active' : ''}
-            onClick={() => selectView({ type: 'all' })}
-          >
-            Hela trädet
-          </button>
+          {!lockNearFilter ? (
+            <button
+              type="button"
+              role="menuitemradio"
+              aria-checked={view.type === 'all'}
+              className={view.type === 'all' ? 'is-active' : ''}
+              onClick={() => selectView({ type: 'all' })}
+            >
+              Hela trädet
+            </button>
+          ) : null}
           <button
             type="button"
             role="menuitemradio"
@@ -135,7 +144,12 @@ export function TreeViewMenu({
             className={view.type === 'near' ? 'is-active' : ''}
             onClick={() => selectView({ type: 'near' })}
           >
-            Nära centrum
+            <span className="tree-view-menu__label">
+              {lockNearFilter ? 'Din gren' : 'Nära centrum'}
+            </span>
+            {lockNearFilter ? (
+              <span className="tree-view-menu__hint">Släkten runt dig</span>
+            ) : null}
           </button>
 
           {surnames.length > 0 ? (

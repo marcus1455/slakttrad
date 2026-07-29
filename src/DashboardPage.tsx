@@ -143,6 +143,10 @@ export function DashboardPage() {
   const coverInputRef = useRef<HTMLInputElement | null>(null)
   const coverTargetRef = useRef<TreeSummary | null>(null)
 
+  useEffect(() => {
+    document.title = 'Släktträd'
+  }, [])
+
   const refresh = useCallback(async () => {
     try {
       const list = await listMyTrees()

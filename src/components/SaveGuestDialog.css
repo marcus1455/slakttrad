@@ -23,9 +23,9 @@
   flex-direction: column;
   gap: 0.75rem;
   padding: 1.2rem 1.25rem 1.3rem;
-  border: 1px solid rgba(28, 36, 28, 0.1);
+  border: 1px solid var(--border-soft);
   border-radius: 18px;
-  background: #fcfaf5;
+  background: var(--surface);
   box-shadow: 0 24px 50px rgba(28, 36, 28, 0.2);
 }
 
@@ -70,7 +70,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #5d6b5f;
+  color: var(--muted);
 }
 
 .save-guest__card header h3 {
@@ -78,7 +78,7 @@
   font-family: var(--font-display, 'Fraunces', Georgia, serif);
   font-size: 1.2rem;
   font-weight: 600;
-  color: #1c241c;
+  color: var(--ink);
 }
 
 .save-guest__lead {
@@ -89,7 +89,7 @@
   letter-spacing: 0 !important;
   text-transform: none !important;
   line-height: 1.45;
-  color: #4a574c !important;
+  color: color-mix(in srgb, var(--ink) 78%, var(--muted)) !important;
 }
 
 .save-guest__card label {
@@ -99,15 +99,15 @@
   font-family: var(--font-ui, 'Figtree', system-ui, sans-serif);
   font-size: 0.78rem;
   font-weight: 600;
-  color: #4a574c;
+  color: color-mix(in srgb, var(--ink) 78%, var(--muted));
 }
 
 .save-guest__card input {
   padding: 0.65rem 0.75rem;
-  border: 1px solid rgba(28, 36, 28, 0.14);
+  border: 1px solid var(--border);
   border-radius: 10px;
-  background: #fff;
-  color: #1c241c;
+  background: var(--surface);
+  color: var(--ink);
   font-family: var(--font-ui, 'Figtree', system-ui, sans-serif);
   font-size: 0.95rem;
 }
@@ -132,9 +132,9 @@
 }
 
 .save-guest__actions button.ghost {
-  background: transparent;
-  color: #3d4a40;
-  border-color: rgba(28, 36, 28, 0.16);
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--border);
 }
 
 .save-guest__actions button:disabled {
@@ -155,14 +155,14 @@
 }
 
 .save-guest__sent {
-  color: #3d4a40;
+  color: color-mix(in srgb, var(--ink) 82%, var(--muted));
 }
 
 .save-guest__switch {
   margin: 0;
   font-family: var(--font-ui, 'Figtree', system-ui, sans-serif);
   font-size: 0.78rem;
-  color: #5d6b5f;
+  color: var(--muted);
   text-align: center;
 }
 

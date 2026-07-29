@@ -65,7 +65,7 @@
   padding: 0.65rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   font-family: var(--font-ui);
   font-size: 0.82rem;
@@ -139,7 +139,7 @@
   padding: 0.25rem 0.45rem;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   color: var(--muted);
   font: inherit;
   font-size: 0.75rem;
@@ -215,7 +215,7 @@
   font-family: var(--font-ui);
   font-size: 0.78rem;
   font-weight: 600;
-  color: #4a574c;
+  color: color-mix(in srgb, var(--ink) 78%, var(--muted));
 }
 
 .share-dialog__url-row {
@@ -229,7 +229,7 @@
   padding: 0.65rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   font-family: var(--font-ui);
   font-size: 0.82rem;
@@ -277,7 +277,7 @@
   padding: 0.65rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   font-family: var(--font-ui);
   font-size: 0.82rem;

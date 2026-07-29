@@ -110,26 +110,27 @@ type Props = {
 }
 
 export function TreePreview({ slug, previewGenders }: Props) {
-  const fallback = useMemo(
-    () => seededPreview(slug, previewGenders),
-    [slug, previewGenders],
-  )
-  const [data, setData] = useState<PreviewData>(fallback)
+  const fallback = useMemo(() => seededPreview(slug, previewGenders), [slug, previewGenders])
+  const [data, setData] = useState<PreviewData | null>(null)
+  const [loading, setLoading] = useState(true)
   const safeId = slug.replace(/[^a-zA-Z0-9_-]/g, '')
 
   useEffect(() => {
     let cancelled = false
-    setData(fallback)
+    setLoading(true)
+    setData(null)
     void loadPreview(slug).then((next) => {
-      if (!cancelled && next.markers.length) setData(next)
+      if (cancelled) return
+      setData(next.markers.length ? next : fallback)
+      setLoading(false)
     })
     return () => {
       cancelled = true
     }
-  }, [slug, fallback])
+  }, [slug, fallback, previewGenders])
 
   const bounds = useMemo(() => {
-    if (!data.markers.length) {
+    if (!data?.markers.length) {
       return { minX: 0, minY: 0, width: 160, height: 100 }
     }
     const xs = data.markers.map((m) => m.x)
@@ -144,12 +145,19 @@ export function TreePreview({ slug, previewGenders }: Props) {
       width: Math.max(80, maxX - minX),
       height: Math.max(60, maxY - minY),
     }
-  }, [data.markers])
+  }, [data])
 
   return (
-    <div className="tree-preview" aria-hidden>
+    <div className={loading ? 'tree-preview tree-preview--loading' : 'tree-preview'} aria-hidden>
+      {loading ? (
+        <div className="tree-preview__skeleton">
+          <span className="tree-preview__skeleton-line tree-preview__skeleton-line--a" />
+          <span className="tree-preview__skeleton-line tree-preview__skeleton-line--b" />
+          <span className="tree-preview__skeleton-line tree-preview__skeleton-line--c" />
+        </div>
+      ) : null}
       <svg
-        className="tree-preview__svg"
+        className={loading ? 'tree-preview__svg tree-preview__svg--hidden' : 'tree-preview__svg'}
         viewBox={`${bounds.minX} ${bounds.minY} ${bounds.width} ${bounds.height}`}
         preserveAspectRatio="xMidYMid meet"
       >
@@ -166,7 +174,7 @@ export function TreePreview({ slug, previewGenders }: Props) {
           height={bounds.height}
           fill={`url(#tp-bg-${safeId})`}
         />
-        {data.segments.map((s, i) => (
+        {(data?.segments ?? []).map((s, i) => (
           <line
             key={`s-${i}`}
             className="tree-preview__line"
@@ -176,7 +184,7 @@ export function TreePreview({ slug, previewGenders }: Props) {
             y2={s.y2}
           />
         ))}
-        {data.markers.map((m, i) => (
+        {(data?.markers ?? []).map((m, i) => (
           <circle
             key={`${m.x}-${m.y}-${i}`}
             className={
@@ -188,7 +196,7 @@ export function TreePreview({ slug, previewGenders }: Props) {
             }
             cx={m.x}
             cy={m.y}
-            r={data.markers.length > 30 ? 3.2 : 4.2}
+            r={(data?.markers.length ?? 0) > 30 ? 3.2 : 4.2}
           />
         ))}
       </svg>

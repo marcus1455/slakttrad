@@ -23,9 +23,9 @@
   flex-direction: column;
   gap: 0.75rem;
   padding: 1.2rem 1.25rem 1.3rem;
-  border: 1px solid rgba(28, 36, 28, 0.1);
+  border: 1px solid var(--border-soft);
   border-radius: 18px;
-  background: #fcfaf5;
+  background: var(--surface);
   box-shadow: 0 24px 50px rgba(28, 36, 28, 0.2);
 }
 
@@ -66,7 +66,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #5d6b5f;
+  color: var(--muted);
 }
 
 .quick-add__card header h3,
@@ -75,7 +75,7 @@
   font-family: 'Fraunces', Georgia, serif;
   font-size: 1.2rem;
   font-weight: 600;
-  color: #1c241c;
+  color: var(--ink);
 }
 
 .quick-add__card label {
@@ -85,16 +85,16 @@
   font-family: 'Figtree', system-ui, sans-serif;
   font-size: 0.78rem;
   font-weight: 600;
-  color: #4a574c;
+  color: color-mix(in srgb, var(--ink) 78%, var(--muted));
 }
 
 .quick-add__card input,
 .quick-add__card select {
   padding: 0.65rem 0.75rem;
-  border: 1px solid rgba(28, 36, 28, 0.14);
+  border: 1px solid var(--border);
   border-radius: 10px;
-  background: #fff;
-  color: #1c241c;
+  background: var(--surface);
+  color: var(--ink);
   font-family: 'Figtree', system-ui, sans-serif;
   font-size: 0.95rem;
 }
@@ -119,9 +119,9 @@
 }
 
 .quick-add__actions button.ghost {
-  background: #fff;
-  border-color: rgba(28, 36, 28, 0.14);
-  color: #1c241c;
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--ink);
 }
 
 .quick-add__error {

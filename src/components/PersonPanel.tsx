@@ -37,6 +37,8 @@ type Props = {
   onClose: () => void
   onCenter: (id: string) => void
   onSetFocus: (id: string) => void
+  /** False for collaborators — shared tree centrum is owner-only. */
+  canSetTreeFocus?: boolean
   onPersonCreated?: (id: string) => void
   onPersonDeleted?: (next: FamilyStore, removedId: string) => void
 }
@@ -113,6 +115,7 @@ export function PersonPanel({
   onClose,
   onCenter,
   onSetFocus,
+  canSetTreeFocus = true,
   onPersonCreated,
   onPersonDeleted,
 }: Props) {
@@ -571,7 +574,7 @@ export function PersonPanel({
                 <button type="button" className="ghost" onClick={() => onCenter(selectedId)}>
                   Visa i trädet
                 </button>
-                {!readOnly ? (
+                {!readOnly && canSetTreeFocus ? (
                   <button
                     type="button"
                     disabled={store.rootId === selectedId}

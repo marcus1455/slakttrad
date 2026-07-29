@@ -3,7 +3,7 @@ import { createBlankFamily } from '../data/blank'
 import { addChild, addPartner, soleSpouseId } from './relations'
 
 describe('addChild', () => {
-  it('links only to the chosen parent by default', () => {
+  it('links only to the chosen parent when no coParentId is passed', () => {
     let store = createBlankFamily('Linnea')
     const linneaId = store.rootId
     store = addPartner(store, linneaId, { name: 'Harry', gender: 'male' })
@@ -24,17 +24,20 @@ describe('addChild', () => {
     ).toBe(false)
   })
 
-  it('links to both partners when coParentId is set', () => {
+  it('links to both partners when the person has exactly one spouse (UI path)', () => {
     let store = createBlankFamily('Linnea')
     const linneaId = store.rootId
     store = addPartner(store, linneaId, { name: 'Harry', gender: 'male' })
     const harryId = Object.keys(store.profiles).find((id) => id !== linneaId)!
 
+    const coParentId = soleSpouseId(store, harryId)
+    expect(coParentId).toBe(linneaId)
+
     store = addChild(
       store,
       harryId,
       { name: 'Inger', gender: 'female' },
-      { coParentId: linneaId },
+      { coParentId },
     )
     const ingerId = Object.keys(store.profiles).find(
       (id) => id !== linneaId && id !== harryId,
@@ -50,12 +53,17 @@ describe('addChild', () => {
     )
   })
 
-  it('soleSpouseId returns the only partner', () => {
+  it('soleSpouseId returns the only partner, else undefined', () => {
     let store = createBlankFamily('Linnea')
     const linneaId = store.rootId
+    expect(soleSpouseId(store, linneaId)).toBeUndefined()
+
     store = addPartner(store, linneaId, { name: 'Harry', gender: 'male' })
     const harryId = Object.keys(store.profiles).find((id) => id !== linneaId)!
     expect(soleSpouseId(store, harryId)).toBe(linneaId)
     expect(soleSpouseId(store, linneaId)).toBe(harryId)
+
+    store = addPartner(store, harryId, { name: 'Other', gender: 'female' })
+    expect(soleSpouseId(store, harryId)).toBeUndefined()
   })
 })

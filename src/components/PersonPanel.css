@@ -29,16 +29,16 @@
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1.1rem;
+  margin-bottom: 0.55rem;
 }
 
 .person-panel__eyebrow {
-  margin: 0 0 0.2rem;
+  margin: 0 0 0.12rem;
   font-family: 'Figtree', system-ui, sans-serif;
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #5d6b5f;
+  color: var(--muted);
 }
 
 .person-panel__header h2 {
@@ -46,32 +46,32 @@
   font-family: 'Fraunces', Georgia, serif;
   font-size: 1.4rem;
   font-weight: 600;
-  color: #1c241c;
+  color: var(--ink);
   line-height: 1.15;
 }
 
 .person-panel__years {
-  margin: 0.35rem 0 0;
+  margin: 0.22rem 0 0;
   font-family: 'Figtree', system-ui, sans-serif;
   font-size: 0.85rem;
-  color: #5d6b5f;
+  color: color-mix(in srgb, var(--ink) 86%, var(--muted));
 }
 
 .person-panel__nickname {
-  margin: 0.35rem 0 0;
+  margin: 0.22rem 0 0;
   font-family: 'Figtree', system-ui, sans-serif;
   font-size: 0.9rem;
   font-style: italic;
-  color: #4a5a4c;
+  color: color-mix(in srgb, var(--ink) 84%, var(--muted));
 }
 
 .person-panel__relation {
   display: inline-block;
-  margin: 0.45rem 0 0;
+  margin: 0.3rem 0 0;
   padding: 0.2rem 0.55rem;
   border-radius: 999px;
   background: rgba(47, 93, 80, 0.12);
-  color: #2f5d50;
+  color: var(--teal);
   font-family: 'Figtree', system-ui, sans-serif;
   font-size: 0.72rem;
   font-weight: 700;
@@ -82,10 +82,10 @@
 .person-panel__actions button,
 .person-panel__add-row button,
 .person-panel__photo-actions button {
-  border: 1px solid rgba(28, 36, 28, 0.14);
+  border: 1px solid var(--border);
   border-radius: 10px;
-  background: #fff;
-  color: #1c241c;
+  background: var(--surface);
+  color: var(--ink);
   font-family: 'Figtree', system-ui, sans-serif;
   font-size: 0.85rem;
   font-weight: 600;
@@ -104,22 +104,22 @@
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: #5d6b5f;
+  color: var(--muted);
   font-size: 1.45rem;
   line-height: 1;
   cursor: pointer;
 }
 
 .person-panel__close:hover {
-  background: color-mix(in srgb, #5d6b5f 10%, transparent);
-  color: #1c241c;
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
+  color: var(--ink);
 }
 
 .person-panel__tabs {
   display: flex;
   gap: 0.15rem;
-  margin: -0.35rem 0 1rem;
-  border-bottom: 1px solid rgba(28, 36, 28, 0.1);
+  margin: 0 0 0.72rem;
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .person-panel__tab {
@@ -129,7 +129,7 @@
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
   background: transparent;
-  color: #5d6b5f;
+  color: color-mix(in srgb, var(--ink) 58%, var(--muted));
   font-family: 'Figtree', system-ui, sans-serif;
   font-size: 0.78rem;
   font-weight: 600;
@@ -137,12 +137,12 @@
 }
 
 .person-panel__tab:hover {
-  color: #1c241c;
+  color: var(--ink);
 }
 
 .person-panel__tab--active {
-  color: #2f5d50;
-  border-bottom-color: #2f5d50;
+  color: var(--teal);
+  border-bottom-color: var(--teal);
 }
 
 .person-panel__tab-panel {
@@ -168,8 +168,8 @@
   padding: 0.85rem;
   border: 1px dashed transparent;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.65);
-  border-color: rgba(28, 36, 28, 0.1);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  border-color: var(--border-soft);
   transition:
     border-color 140ms ease,
     background 140ms ease,
@@ -193,7 +193,7 @@
   font-family: 'Figtree', system-ui, sans-serif;
   font-size: 0.72rem;
   font-weight: 500;
-  color: #5d6b5f;
+  color: var(--muted);
   line-height: 1.3;
 }
 
@@ -204,8 +204,8 @@
   height: 76px;
   overflow: hidden;
   border-radius: 18px;
-  background: linear-gradient(145deg, #dfe8e2, #c8d5cc);
-  color: #2f5d50;
+  background: color-mix(in srgb, var(--teal-soft) 70%, var(--surface));
+  color: var(--teal);
   flex-shrink: 0;
 }
 
@@ -233,21 +233,21 @@
 }
 
 .person-panel__photo-actions button.ghost {
-  background: #fff;
-  border-color: rgba(28, 36, 28, 0.14);
-  color: #1c241c;
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--ink);
 }
 
 .person-panel__section {
   margin: 0.35rem 0 0;
   padding-top: 0.65rem;
-  border-top: 1px solid rgba(28, 36, 28, 0.08);
+  border-top: 1px solid var(--border-soft);
   font-family: 'Figtree', system-ui, sans-serif;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #5d6b5f;
+  color: var(--muted);
 }
 
 .person-panel__form label {
@@ -257,7 +257,7 @@
   font-family: 'Figtree', system-ui, sans-serif;
   font-size: 0.78rem;
   font-weight: 600;
-  color: #4a574c;
+  color: color-mix(in srgb, var(--ink) 78%, var(--muted));
 }
 
 .person-panel__row {
@@ -277,10 +277,10 @@
   width: 100%;
   box-sizing: border-box;
   padding: 0.65rem 0.75rem;
-  border: 1px solid rgba(28, 36, 28, 0.14);
+  border: 1px solid var(--border);
   border-radius: 10px;
-  background: #fff;
-  color: #1c241c;
+  background: var(--surface);
+  color: var(--ink);
   font-family: 'Figtree', system-ui, sans-serif;
   font-size: 0.95rem;
   font-weight: 500;
@@ -353,9 +353,9 @@
 }
 
 .person-panel__actions button.ghost {
-  background: #fff;
-  border-color: rgba(28, 36, 28, 0.14);
-  color: #1c241c;
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--ink);
 }
 
 .person-panel__actions button:disabled {
@@ -385,13 +385,13 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #5d6b5f;
+  color: var(--muted);
 }
 
 .person-panel__link-empty {
   font-family: 'Figtree', system-ui, sans-serif;
   font-size: 0.82rem;
-  color: #5d6b5f;
+  color: var(--muted);
 }
 
 .person-panel__link-row {
@@ -423,7 +423,7 @@
   flex-direction: column;
   gap: 0.45rem;
   padding-top: 0.35rem;
-  border-top: 1px solid rgba(28, 36, 28, 0.08);
+  border-top: 1px solid var(--border-soft);
 }
 
 .person-panel__events > p {
@@ -433,7 +433,7 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #5d6b5f;
+  color: var(--muted);
 }
 
 .person-panel__event-row {
@@ -442,16 +442,16 @@
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.55rem 0.65rem;
-  border: 1px solid rgba(28, 36, 28, 0.1);
+  border: 1px solid var(--border-soft);
   border-radius: 10px;
-  background: #fff;
+  background: var(--surface);
 }
 
 .person-panel__event-row strong {
   display: block;
   font-family: 'Figtree', system-ui, sans-serif;
   font-size: 0.84rem;
-  color: #1c241c;
+  color: var(--ink);
 }
 
 .person-panel__event-row span {
@@ -459,7 +459,7 @@
   margin-top: 0.15rem;
   font-family: 'Figtree', system-ui, sans-serif;
   font-size: 0.76rem;
-  color: #5d6b5f;
+  color: var(--muted);
 }
 
 .person-panel__event-form {
@@ -483,10 +483,10 @@
 .person-panel__link-row .text {
   flex: 1;
   padding: 0.45rem 0.55rem;
-  border: 1px solid rgba(28, 36, 28, 0.1);
+  border: 1px solid var(--border-soft);
   border-radius: 8px;
-  background: #fff;
-  color: #1c241c;
+  background: var(--surface);
+  color: var(--ink);
   font-family: 'Figtree', system-ui, sans-serif;
   font-size: 0.82rem;
   font-weight: 600;

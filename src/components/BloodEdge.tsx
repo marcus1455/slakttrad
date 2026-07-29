@@ -14,6 +14,7 @@ type Props = {
   edgeKey: string
   /** Selected or group-hovered — highlights the whole blood link. */
   active?: boolean
+  muted?: boolean
   onSelect: () => void
   onHoverChange?: (hovered: boolean) => void
 }
@@ -24,6 +25,7 @@ export function BloodEdge({
   childName,
   edgeKey,
   active = false,
+  muted = false,
   onSelect,
   onHoverChange,
 }: Props) {
@@ -56,6 +58,7 @@ export function BloodEdge({
         'tree-edge',
         'blood-edge',
         active ? 'blood-edge--active' : '',
+        muted ? 'tree-edge--muted' : '',
       ]
         .filter(Boolean)
         .join(' ')}

@@ -13,14 +13,27 @@
   cursor: crosshair;
   touch-action: none;
   user-select: none;
+  opacity: 0.5;
+  transform: scale(0.94);
+  transform-origin: bottom right;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.tree-minimap:hover,
+.tree-minimap:focus-within {
+  opacity: 1;
+  transform: scale(1);
+  box-shadow: 0 12px 30px rgba(28, 36, 28, 0.2);
 }
 
 .tree-minimap__world {
   position: absolute;
   overflow: hidden;
   border-radius: calc(var(--radius-lg) - 4px);
-  background:
-    linear-gradient(165deg, rgba(232, 239, 233, 0.9), rgba(221, 231, 235, 0.95));
+  background: color-mix(in srgb, var(--surface) 88%, var(--paper));
 }
 
 .tree-minimap__dot {
@@ -47,7 +60,7 @@
   border: 1.5px solid var(--teal);
   border-radius: 3px;
   background: color-mix(in srgb, var(--teal) 18%, transparent);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35) inset;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 20%, transparent) inset;
   pointer-events: none;
 }
 

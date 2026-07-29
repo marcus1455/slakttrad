@@ -1,10 +1,19 @@
 .account-page {
+  position: relative;
   min-height: 100%;
+  overflow: hidden;
   background:
     radial-gradient(ellipse 80% 50% at 10% -10%, rgba(47, 93, 80, 0.1), transparent 55%),
     radial-gradient(ellipse 60% 40% at 100% 0%, rgba(61, 90, 128, 0.07), transparent 50%),
     linear-gradient(165deg, #f4f0e7 0%, var(--paper) 45%, #e6ebe7 100%);
   color: var(--ink);
+}
+
+:root[data-theme='dark'] .account-page {
+  background:
+    radial-gradient(ellipse 76% 54% at 8% -10%, rgba(54, 112, 94, 0.28), transparent 56%),
+    radial-gradient(ellipse 58% 42% at 100% 0%, rgba(73, 102, 150, 0.2), transparent 52%),
+    linear-gradient(165deg, #0f1714 0%, #15211d 46%, #1b2b25 100%);
 }
 
 .account-page__top {
@@ -194,8 +203,25 @@
   margin-top: auto;
   padding: 0.55rem 0.8rem;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
+  font-weight: 650;
+}
+
+.account-page__signout:hover {
+  border-color: color-mix(in srgb, var(--teal) 35%, var(--border));
+  background: color-mix(in srgb, var(--teal) 10%, var(--surface));
+}
+
+:root[data-theme='dark'] .account-page__signout {
+  border-color: color-mix(in srgb, var(--teal) 45%, var(--border));
+  background: color-mix(in srgb, var(--teal) 16%, var(--surface));
+  color: color-mix(in srgb, var(--ink) 96%, white);
+}
+
+:root[data-theme='dark'] .account-page__signout:hover {
+  border-color: color-mix(in srgb, var(--teal) 60%, var(--border));
+  background: color-mix(in srgb, var(--teal) 24%, var(--surface));
 }
 
 .account-page__settings-form {
@@ -211,7 +237,7 @@
   font-family: var(--font-ui);
   font-size: 0.82rem;
   font-weight: 600;
-  color: #4a574c;
+  color: color-mix(in srgb, var(--ink) 78%, var(--muted));
 }
 
 .account-page__settings-form input,
@@ -219,15 +245,76 @@
   padding: 0.7rem 0.8rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   font: inherit;
+}
+
+.account-page__settings-form input::placeholder,
+.account-page__settings-form select:invalid {
+  color: color-mix(in srgb, var(--ink) 52%, var(--muted));
+}
+
+.account-page__settings-form input::-webkit-input-placeholder {
+  color: color-mix(in srgb, var(--ink) 52%, var(--muted));
 }
 
 .account-page__settings-actions {
   display: flex;
   justify-content: flex-start;
   margin-top: 0.25rem;
+}
+
+.account-page__theme {
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border-soft);
+}
+
+.account-page__theme h3 {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.account-page__theme p {
+  margin: 0.35rem 0 0.65rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.account-page__theme-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.account-page__theme-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.account-page__theme-btn.is-active {
+  border-color: var(--teal);
+  color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 12%, var(--surface));
+}
+
+.account-page__theme-btn svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  flex-shrink: 0;
 }
 
 .account-page__new {

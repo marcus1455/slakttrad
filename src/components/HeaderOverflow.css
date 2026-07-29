@@ -40,6 +40,9 @@
     top: calc(100% + 0.45rem);
     right: 0;
     min-width: 12rem;
+    max-height: min(70dvh, calc(100dvh - 5rem));
+    overflow-x: hidden;
+    overflow-y: auto;
     padding: 0.45rem;
     border: 1px solid var(--border-soft);
     border-radius: 12px;

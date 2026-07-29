@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BloodEdge } from './components/BloodEdge'
 import { ExportMenu } from './components/ExportMenu'
+import { FamilyMemoryPanel } from './components/FamilyMemoryPanel'
 import { HeaderOverflow } from './components/HeaderOverflow'
 import { HistoryDialog } from './components/HistoryDialog'
 import { AuthMenu } from './components/AuthMenu'
@@ -51,6 +52,7 @@ import {
   linkParentChild,
   linkSpouse,
   soleSpouseId,
+  updateProfile,
 } from './lib/relations'
 import {
   createFamilyFromStore,
@@ -68,7 +70,7 @@ import {
 import { supabase } from './lib/supabase'
 import { avatarUrlForUserInTree, personProfileForUser } from './lib/userDisplay'
 import { markTreeOpened } from './lib/recentTrees'
-import { nodesForView, type TreeView } from './lib/treeView'
+import { nearIds, nodesForView, type TreeView } from './lib/treeView'
 
 import type { FamilyStore, TreeMeta } from './types'
 import './App.css'
@@ -208,6 +210,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [selectedEdge, setSelectedEdge] = useState<SelectedEdge | null>(null)
   const [hoveredEdge, setHoveredEdge] = useState<SelectedEdge | null>(null)
+  const [hoveredPersonId, setHoveredPersonId] = useState<string | null>(null)
   const edgeHoverClearRef = useRef<number | null>(null)
   const [linkDrag, setLinkDrag] = useState<LinkDrag | null>(null)
   const [toasts, setToasts] = useState<ToastItem[]>([])
@@ -259,7 +262,19 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
   storeRef.current = store
   historyRef.current = history
 
-  const focusId = store?.rootId ?? ''
+  const isTreeOwner =
+    isGuestMode || !meta?.ownerId || (!!user && meta.ownerId === user.id)
+
+  const linkedPerson = useMemo(() => {
+    if (!user || !store) return null
+    return personProfileForUser(user, store.profiles)
+  }, [user, store])
+
+  /** Session focus for filters/layout — never mutates shared rootId for collaborators. */
+  const viewFocusId = linkedPerson && !isTreeOwner ? linkedPerson.id : (store?.rootId ?? '')
+  const lockNearFilter = Boolean(linkedPerson && !isTreeOwner)
+
+  const focusId = viewFocusId
   const focusName = firstName(store?.profiles[focusId]?.name, 'centrum')
 
   const { peers, remoteCursors, publishCursor, self: presenceSelf } = useTreePresence({
@@ -276,26 +291,92 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
     if (!user || !store) return
     const person = personProfileForUser(user, store.profiles)
     if (!person?.photoUrl) return
-    const meta = user.user_metadata ?? {}
-    if (meta.avatar_url === person.photoUrl) return
+    const umeta = user.user_metadata ?? {}
+    if (umeta.avatar_url === person.photoUrl) return
     void supabase.auth.updateUser({
       data: {
         avatar_url: person.photoUrl,
-        full_name: person.name || meta.full_name,
+        full_name: person.name || umeta.full_name,
       },
     })
   }, [user, store])
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('slakttrad.theme')
+      const mode = raw === 'dark' || raw === 'light' ? raw : null
+      if (mode) document.documentElement.dataset.theme = mode
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  // Collaborators: auto-claim matching person by email, then lock to their near branch.
+  const autoClaimedRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!user || !store || !meta || isGuestMode || isViewMode) return
+    if (isTreeOwner) return
+    if (autoClaimedRef.current === meta.id) return
+
+    const existing = personProfileForUser(user, store.profiles)
+    if (existing) {
+      autoClaimedRef.current = meta.id
+      setTreeView({ type: 'near' })
+      return
+    }
+
+    const email = user.email?.trim().toLowerCase()
+    if (!email) return
+
+    const match = Object.values(store.profiles).find((p) => {
+      const profileEmail = p.email?.trim().toLowerCase()
+      const invited = p.invitedEmail?.trim().toLowerCase()
+      if (profileEmail !== email && invited !== email) return false
+      if (p.claimedByUserId && p.claimedByUserId !== user.id) return false
+      return true
+    })
+    if (!match) return
+
+    autoClaimedRef.current = meta.id
+    let next = store
+    for (const p of Object.values(store.profiles)) {
+      if (p.claimedByUserId === user.id && p.id !== match.id) {
+        next = updateProfile(next, p.id, { claimedByUserId: '' })
+      }
+    }
+    next = updateProfile(next, match.id, {
+      claimedByUserId: user.id,
+      email: user.email ?? match.email,
+    })
+    // Avoid treating this as a user edit that needs history; persist via normal save.
+    skipNextSave.current = false
+    setStore(next)
+    storeRef.current = next
+    setTreeView({ type: 'near' })
+    void supabase.auth.updateUser({
+      data: {
+        linked_person_id: match.id,
+        full_name: match.name,
+      },
+    })
+  }, [user, store, meta, isGuestMode, isViewMode, isTreeOwner])
+
+  // Keep locked collaborators on near even if something tries to switch view.
+  useEffect(() => {
+    if (!lockNearFilter) return
+    if (treeView.type !== 'near') setTreeView({ type: 'near' })
+  }, [lockNearFilter, treeView.type])
+
   const treeLayout = useMemo(() => {
-    if (!store) return null
-    const nodes = nodesForView(store, treeView)
+    if (!store || !focusId) return null
+    const nodes = nodesForView(store, treeView, focusId)
     return layoutTree(nodes, {
       mode: layoutMode,
-      rootId: store.rootId,
+      rootId: focusId,
       nodeWidth: NODE_WIDTH,
       nodeHeight: NODE_HEIGHT,
     })
-  }, [store?.nodes, store?.profiles, store?.rootId, treeView, layoutMode])
+  }, [store?.nodes, store?.profiles, store?.rootId, focusId, treeView, layoutMode])
 
   // Fit canvas when the active view changes (or first layout after load)
   const viewKey =
@@ -351,6 +432,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
     setSelectedEdge(null)
     setLinkDrag(null)
     setTreeView({ type: 'all' })
+    autoClaimedRef.current = null
 
     if (isGuestMode) {
       const guest = loadOrCreateGuestTree()
@@ -635,7 +717,8 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
 
   const onSetFocus = useCallback(
     (id: string) => {
-      if (readOnly || !storeRef.current) return
+      // Only the tree owner may change the shared saved centrum (rootId).
+      if (readOnly || !isTreeOwner || !storeRef.current) return
       const nextHistory = pushHistory(historyRef.current, storeRef.current)
       const next = { ...storeRef.current, rootId: id }
       historyRef.current = nextHistory
@@ -643,7 +726,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
       setHistory(nextHistory)
       setStore(next)
     },
-    [readOnly],
+    [readOnly, isTreeOwner],
   )
 
   const onUndo = useCallback(() => {
@@ -679,6 +762,11 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
       if (!store) return
       const inView = treeLayout?.people.some((p) => p.id === id)
       if (!inView && treeView.type !== 'all') {
+        if (lockNearFilter) {
+          setSelectedId(id)
+          showToast('Personen syns inte i din gren av trädet')
+          return
+        }
         pendingRevealId.current = id
         setTreeView({ type: 'all' })
         setSelectedId(id)
@@ -697,7 +785,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
       })
       setSelectedId(id)
     },
-    [store, treeLayout, treeView.type],
+    [store, treeLayout, treeView.type, lockNearFilter, showToast],
   )
 
   useEffect(() => {
@@ -714,10 +802,13 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
     setSelectedId(id)
   }, [treeLayout, treeView.type])
 
-  const onChangeView = useCallback((next: TreeView) => {
-    setTreeView(next)
-  }, [])
-
+  const onChangeView = useCallback(
+    (next: TreeView) => {
+      if (lockNearFilter && next.type !== 'near') return
+      setTreeView(next)
+    },
+    [lockNearFilter],
+  )
   const onChangeLayoutMode = useCallback((mode: LayoutMode) => {
     setLayoutMode(mode)
     try {
@@ -860,6 +951,21 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
     return relationToFocus(store, selectedId, focusId)
   }, [store, selectedId, focusId])
 
+  const hoveredRelationIds = useMemo(() => {
+    if (!store || !hoveredPersonId) return null
+    const ids = nearIds(store, hoveredPersonId)
+    return ids.size ? ids : null
+  }, [store, hoveredPersonId])
+
+  const viewScopeHint =
+    treeView.type === 'near'
+      ? lockNearFilter
+        ? `Filter: Din gren kring ${firstName(store?.profiles[focusId]?.name, 'dig')}`
+        : `Filter: Nära centrum (${firstName(store?.profiles[focusId]?.name, 'centrum')})`
+      : treeView.type === 'surname'
+        ? `Filter: Efternamn ${treeView.surname}`
+        : null
+
   const statusHint = (() => {
     if (isViewMode) return null
     if (isGuestMode) {
@@ -933,10 +1039,11 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
                 {statusHint}
               </p>
             ) : null}
+            {viewScopeHint ? <p className="app__hint app__hint--branch">{viewScopeHint}</p> : null}
           </div>
           <SearchBar store={store} onSelect={onCenter} />
           <button type="button" className="app__tool" onClick={() => setListOpen(true)}>
-            Personer
+            Öppna personlista
           </button>
           <HeaderOverflow>
             <TreeViewMenu
@@ -945,6 +1052,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
               onChange={onChangeView}
               layoutMode={layoutMode}
               onChangeLayoutMode={onChangeLayoutMode}
+              lockNearFilter={lockNearFilter}
             />
             {!readOnly ? (
               <>
@@ -1049,6 +1157,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
             setSelectedId(null)
             setSelectedEdge(null)
             setHoveredEdge(null)
+            setHoveredPersonId(null)
           }}
         >
           {treeLayout ? (
@@ -1056,6 +1165,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
               className={[
                 'family-tree',
                 linkDrag ? 'family-tree--linking' : '',
+                hoveredRelationIds ? 'family-tree--hovering-person' : '',
               ]
                 .filter(Boolean)
                 .join(' ')}
@@ -1068,8 +1178,13 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
                   const bName = store.profiles[bId]?.name ?? 'partner'
                   const edge: SelectedEdge = { kind: 'spouse', aId, bId }
                   const key = edgeKey(edge)
+                  const relatedToHover =
+                    !!hoveredRelationIds &&
+                    (hoveredRelationIds.has(aId) || hoveredRelationIds.has(bId))
                   const active =
-                    sameEdge(selectedEdge, edge) || sameEdge(hoveredEdge, edge)
+                    sameEdge(selectedEdge, edge) ||
+                    sameEdge(hoveredEdge, edge) ||
+                    relatedToHover
                   return (
                     <SpouseEdge
                       key={`c-${index}`}
@@ -1077,6 +1192,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
                       label={`${aName} och ${bName}`}
                       edgeKey={key}
                       active={active}
+                      muted={!!hoveredRelationIds && !relatedToHover}
                       onSelect={() => {
                         setSelectedId(null)
                         setSelectedEdge(edge)
@@ -1095,8 +1211,13 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
                     parentIds,
                   }
                   const key = edgeKey(edge)
+                  const relatedToHover =
+                    !!hoveredRelationIds &&
+                    [...childIds, ...parentIds].some((id) => hoveredRelationIds.has(id))
                   const active =
-                    sameEdge(selectedEdge, edge) || sameEdge(hoveredEdge, edge)
+                    sameEdge(selectedEdge, edge) ||
+                    sameEdge(hoveredEdge, edge) ||
+                    relatedToHover
                   const labelChild =
                     childIds.length === 1
                       ? (store.profiles[childIds[0]!]?.name ?? 'barn')
@@ -1108,6 +1229,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
                       childName={labelChild}
                       edgeKey={key}
                       active={active}
+                      muted={!!hoveredRelationIds && !relatedToHover}
                       onSelect={() => {
                         setSelectedId(null)
                         setSelectedEdge(edge)
@@ -1121,7 +1243,10 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
                 return (
                   <i
                     key={`c-${index}`}
-                    className={`family-tree__connector family-tree__connector--${line.kind}`}
+                    className={[
+                      `family-tree__connector family-tree__connector--${line.kind}`,
+                      hoveredRelationIds ? 'family-tree__connector--muted' : '',
+                    ].join(' ')}
                     style={{
                       left: Math.min(line.x1, line.x2),
                       top: Math.min(line.y1, line.y2),
@@ -1147,6 +1272,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
                     relationLabel={relationToFocus(store, person.id, focusId)}
                     isSelected={person.id === selectedId}
                     isFocus={person.id === focusId}
+                    isMuted={!!hoveredRelationIds && !hoveredRelationIds.has(person.id)}
                     isDropTarget={linkDrag?.hoverId === person.id}
                     readOnly={readOnly}
                     canAddParent={(graphNode?.parents.length ?? 0) < 2}
@@ -1163,6 +1289,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
                       setQuickAdd({ personId: id, kind, coParentId })
                     }}
                     onLinkDragStart={onLinkDragStart}
+                    onHoverChange={setHoveredPersonId}
                     style={{
                       width: NODE_WIDTH,
                       height: NODE_HEIGHT,
@@ -1208,6 +1335,14 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
             </div>
           ) : null}
         </PinchZoomPan>
+        {selectedId ? (
+          <FamilyMemoryPanel
+            store={store}
+            selectedId={selectedId}
+            focusId={focusId}
+            onCenter={onCenter}
+          />
+        ) : null}
 
         {showCoach ? (
           <aside className="app__coach" role="status">
@@ -1239,6 +1374,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
             onClose={() => setSelectedId(null)}
             onCenter={onCenter}
             onSetFocus={onSetFocus}
+            canSetTreeFocus={isTreeOwner}
             onPersonCreated={revealCreatedPerson}
             onPersonDeleted={() => {
               setSelectedId(null)

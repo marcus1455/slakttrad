@@ -17,12 +17,14 @@ type Props = {
   relationLabel?: string | null
   isSelected: boolean
   isFocus: boolean
+  isMuted?: boolean
   isDropTarget?: boolean
   canAddParent: boolean
   readOnly?: boolean
   style?: CSSProperties
   onSelect: (id: string) => void
   onQuickAdd: (id: string, kind: QuickAddKind) => void
+  onHoverChange?: (id: string | null) => void
   /** Start drag-to-link from a relation handle. */
   onLinkDragStart?: (
     personId: string,
@@ -80,12 +82,14 @@ export function PersonCard({
   relationLabel,
   isSelected,
   isFocus,
+  isMuted = false,
   isDropTarget = false,
   canAddParent,
   readOnly = false,
   style,
   onSelect,
   onQuickAdd,
+  onHoverChange,
   onLinkDragStart,
 }: Props) {
   const gender = profile?.gender ?? String(node.gender)
@@ -111,6 +115,7 @@ export function PersonCard({
       className={[
         'person-card-slot',
         isSelected ? 'person-card-slot--selected' : '',
+        isMuted ? 'person-card-slot--muted' : '',
         !readOnly ? 'person-card-slot--editable' : '',
         isDropTarget ? 'person-card-slot--drop-target' : '',
       ]
@@ -125,6 +130,7 @@ export function PersonCard({
           `person-card--${gender}`,
           isSelected ? 'person-card--selected' : '',
           isFocus ? 'person-card--focus' : '',
+          isMuted ? 'person-card--muted' : '',
           deceased ? 'person-card--deceased' : '',
           isDropTarget ? 'person-card--drop-target' : '',
         ]
@@ -135,6 +141,8 @@ export function PersonCard({
           type="button"
           className="person-card__main"
           onClick={() => onSelect(node.id)}
+          onPointerEnter={() => onHoverChange?.(node.id)}
+          onPointerLeave={() => onHoverChange?.(null)}
           title={title}
         >
           {profile?.photoUrl ? (

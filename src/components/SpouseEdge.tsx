@@ -12,6 +12,7 @@ type Props = {
   label: string
   edgeKey: string
   active?: boolean
+  muted?: boolean
   onSelect: () => void
   onHoverChange?: (hovered: boolean) => void
 }
@@ -22,6 +23,7 @@ export function SpouseEdge({
   label,
   edgeKey,
   active = false,
+  muted = false,
   onSelect,
   onHoverChange,
 }: Props) {
@@ -43,6 +45,7 @@ export function SpouseEdge({
         'tree-edge',
         'spouse-edge',
         active ? 'spouse-edge--active' : '',
+        muted ? 'tree-edge--muted' : '',
       ]
         .filter(Boolean)
         .join(' ')}

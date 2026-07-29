@@ -23,9 +23,9 @@
   flex-direction: column;
   gap: 0.85rem;
   padding: 1.2rem 1.25rem 1.25rem;
-  border: 1px solid rgba(28, 36, 28, 0.1);
+  border: 1px solid var(--border-soft);
   border-radius: 18px;
-  background: #fbfdf9;
+  background: var(--surface);
   box-shadow: 0 24px 60px rgba(20, 28, 22, 0.22);
   animation: confirm-in 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -37,7 +37,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #5d6b5f;
+  color: var(--muted);
 }
 
 .confirm-dialog__card > header h3 {
@@ -45,7 +45,7 @@
   font-family: Georgia, 'Times New Roman', serif;
   font-size: 1.25rem;
   font-weight: 600;
-  color: #1c241c;
+  color: var(--ink);
   line-height: 1.25;
 }
 
@@ -55,7 +55,7 @@
   font-size: 0.92rem;
   font-weight: 500;
   line-height: 1.45;
-  color: #4a574c;
+  color: color-mix(in srgb, var(--ink) 80%, var(--muted));
 }
 
 .confirm-dialog__actions {
@@ -76,9 +76,9 @@
 }
 
 .confirm-dialog__actions .ghost {
-  border: 1px solid rgba(28, 36, 28, 0.14);
-  background: #fff;
-  color: #1c241c;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
 }
 
 .confirm-dialog__actions .primary {

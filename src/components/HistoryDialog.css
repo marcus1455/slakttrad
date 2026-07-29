@@ -14,8 +14,8 @@
   overflow: auto;
   padding: 1.15rem 1.2rem 1.25rem;
   border-radius: 16px;
-  background: #fbfdf9;
-  border: 1px solid rgba(28, 36, 28, 0.1);
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
   box-shadow: 0 24px 60px rgba(20, 28, 22, 0.22);
 }
 
@@ -34,14 +34,14 @@
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #5d6b5f;
+  color: var(--muted);
 }
 
 .history-dialog__header h3 {
   margin: 0.15rem 0 0;
   font-family: var(--font-display, Georgia, 'Times New Roman', serif);
   font-size: 1.35rem;
-  color: #1c241c;
+  color: var(--ink);
 }
 
 .history-dialog__close {
@@ -68,10 +68,10 @@
 
 .history-dialog__card .ghost {
   padding: 0.45rem 0.7rem;
-  border: 1px solid rgba(28, 36, 28, 0.14);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
-  color: #1c241c;
+  background: var(--surface);
+  color: var(--ink);
   font-family: 'Figtree', system-ui, sans-serif;
   font-size: 0.82rem;
   font-weight: 600;
@@ -93,16 +93,16 @@
   font-family: 'Figtree', system-ui, sans-serif;
   font-size: 0.78rem;
   font-weight: 600;
-  color: #5d6b5f;
+  color: var(--muted);
 }
 
 .history-dialog__form input {
   padding: 0.65rem 0.75rem;
-  border: 1px solid rgba(28, 36, 28, 0.14);
+  border: 1px solid var(--border);
   border-radius: 10px;
-  background: #fff;
+  background: var(--surface);
   font-size: 0.9rem;
-  color: #1c241c;
+  color: var(--ink);
 }
 
 .history-dialog__form button[type='submit'] {
@@ -125,7 +125,7 @@
 
 .history-dialog__empty {
   margin: 0;
-  color: #5d6b5f;
+  color: var(--muted);
   font-family: 'Figtree', system-ui, sans-serif;
   font-size: 0.88rem;
 }
@@ -136,16 +136,16 @@
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.75rem 0.8rem;
-  border: 1px solid rgba(28, 36, 28, 0.1);
+  border: 1px solid var(--border-soft);
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface);
 }
 
 .history-dialog__row strong {
   display: block;
   font-family: 'Figtree', system-ui, sans-serif;
   font-size: 0.92rem;
-  color: #1c241c;
+  color: var(--ink);
 }
 
 .history-dialog__row span {
@@ -153,7 +153,7 @@
   margin-top: 0.15rem;
   font-family: 'Figtree', system-ui, sans-serif;
   font-size: 0.76rem;
-  color: #5d6b5f;
+  color: var(--muted);
 }
 
 .history-dialog__row-actions {
@@ -175,9 +175,9 @@
 }
 
 .history-dialog__row-actions .ghost {
-  border-color: rgba(28, 36, 28, 0.14);
-  background: #fff;
-  color: #1c241c;
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--ink);
 }
 
 .history-dialog__error {

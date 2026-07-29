@@ -31,7 +31,11 @@ export function listSurnames(store: FamilyStore): string[] {
     .map(([surname]) => surname)
 }
 
-function nearIds(store: FamilyStore, focusId: string): Set<string> {
+/**
+ * People near a focus person: self, partner, parents, siblings, children,
+ * grandparents, aunts/uncles, cousins — plus spouses of everyone included.
+ */
+export function nearIds(store: FamilyStore, focusId: string): Set<string> {
   const nodes = new Map(store.nodes.map((n) => [n.id, n]))
   const focus = nodes.get(focusId)
   const ids = new Set<string>()
@@ -47,15 +51,46 @@ function nearIds(store: FamilyStore, focusId: string): Set<string> {
   for (const c of focus.children) add(c.id)
   for (const s of focus.siblings) add(s.id)
 
+  // Direct siblings via shared parents (in case sibling edges are incomplete).
   for (const parentRel of focus.parents) {
     const parent = nodes.get(parentRel.id)
     if (!parent) continue
     for (const s of parent.spouses) add(s.id)
-    for (const gp of parent.parents) add(gp.id)
-    for (const sib of parent.children) add(sib.id) // aunts/uncles
+    for (const sib of parent.children) add(sib.id)
   }
 
-  // Spouses of included siblings / aunts
+  // Aunts/uncles = siblings of parents (via grandparents' children).
+  const auntUncleIds = new Set<string>()
+  for (const parentRel of focus.parents) {
+    const parent = nodes.get(parentRel.id)
+    if (!parent) continue
+    for (const gpRel of parent.parents) {
+      add(gpRel.id)
+      const gp = nodes.get(gpRel.id)
+      if (!gp) continue
+      for (const s of gp.spouses) add(s.id)
+      for (const sib of gp.children) {
+        if (sib.id === parent.id) continue
+        add(sib.id)
+        auntUncleIds.add(sib.id)
+      }
+    }
+    // Also use parent's sibling edges when present.
+    for (const sib of parent.siblings) {
+      if (sib.id === focusId) continue
+      add(sib.id)
+      auntUncleIds.add(sib.id)
+    }
+  }
+
+  // Cousins = children of aunts/uncles.
+  for (const auntUncleId of auntUncleIds) {
+    const auntUncle = nodes.get(auntUncleId)
+    if (!auntUncle) continue
+    for (const cousin of auntUncle.children) add(cousin.id)
+  }
+
+  // Spouses of everyone included (keeps couples intact).
   for (const id of [...ids]) {
     const node = nodes.get(id)
     if (!node) continue
@@ -89,12 +124,16 @@ function surnameIds(store: FamilyStore, surname: string): Set<string> {
 }
 
 /** Nodes to render for the active view (relations to outsiders are ignored by layout). */
-export function nodesForView(store: FamilyStore, view: TreeView): Node[] {
+export function nodesForView(
+  store: FamilyStore,
+  view: TreeView,
+  focusId: string = store.rootId,
+): Node[] {
   if (view.type === 'all') return [...store.nodes]
 
   const keep =
     view.type === 'near'
-      ? nearIds(store, store.rootId)
+      ? nearIds(store, focusId)
       : surnameIds(store, view.surname)
 
   if (keep.size === 0) return [...store.nodes]

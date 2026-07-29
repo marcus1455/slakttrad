@@ -55,6 +55,10 @@
   filter: drop-shadow(0 0 0.5px rgba(47, 93, 80, 0.35));
 }
 
+.tree-edge--muted .tree-edge__stroke {
+  opacity: 0.22;
+}
+
 .tree-edge__sr {
   position: absolute;
   width: 1px;

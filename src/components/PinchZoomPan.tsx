@@ -65,7 +65,28 @@ export function PinchZoomPan({
   const onPointerWorldMoveRef = useRef(onPointerWorldMove)
   onPointerWorldMoveRef.current = onPointerWorldMove
   const minimapTimer = useRef<number | null>(null)
+  const transitionTimer = useRef<number | null>(null)
   const interactingRef = useRef(false)
+
+  const setCanvasTransition = useCallback((value: string) => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    canvas.style.transition = value
+  }, [])
+
+  const animateCanvas = useCallback(
+    (durationMs = 280) => {
+      setCanvasTransition(`transform ${durationMs}ms cubic-bezier(0.22, 1, 0.36, 1)`)
+      if (transitionTimer.current != null) {
+        window.clearTimeout(transitionTimer.current)
+      }
+      transitionTimer.current = window.setTimeout(() => {
+        transitionTimer.current = null
+        setCanvasTransition('none')
+      }, durationMs + 80)
+    },
+    [setCanvasTransition],
+  )
 
   const paintCanvas = useCallback(() => {
     const canvas = canvasRef.current
@@ -157,6 +178,7 @@ export function PinchZoomPan({
     const onWheel = (event: WheelEvent) => {
       event.preventDefault()
       interactingRef.current = true
+      setCanvasTransition('none')
       const rect = el.getBoundingClientRect()
       const originX = event.clientX - rect.left
       const originY = event.clientY - rect.top
@@ -171,10 +193,11 @@ export function PinchZoomPan({
 
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
-  }, [applyScale])
+  }, [applyScale, setCanvasTransition])
 
   useEffect(() => {
     if (!centerRequest || !viewportRef.current) return
+    animateCanvas(300)
     const rect = viewportRef.current.getBoundingClientRect()
     const s = scaleRef.current
     offsetRef.current = {
@@ -183,10 +206,11 @@ export function PinchZoomPan({
     }
     paintCanvas()
     syncMinimap(true)
-  }, [centerRequest, paintCanvas, syncMinimap])
+  }, [centerRequest, paintCanvas, syncMinimap, animateCanvas])
 
   useEffect(() => {
     if (!fitRequest || !viewportRef.current) return
+    animateCanvas(320)
     const rect = viewportRef.current.getBoundingClientRect()
     const pad = 64
     const nextScale = clampScale(
@@ -205,7 +229,7 @@ export function PinchZoomPan({
     }
     paintCanvas()
     syncMinimap(true)
-  }, [fitRequest, paintCanvas, syncMinimap])
+  }, [fitRequest, paintCanvas, syncMinimap, animateCanvas])
 
   useEffect(() => {
     const el = viewportRef.current
@@ -230,10 +254,12 @@ export function PinchZoomPan({
   useEffect(() => {
     return () => {
       if (minimapTimer.current != null) window.clearTimeout(minimapTimer.current)
+      if (transitionTimer.current != null) window.clearTimeout(transitionTimer.current)
     }
   }, [])
 
   const zoomBy = (delta: number) => {
+    animateCanvas(180)
     const el = viewportRef.current
     if (!el) {
       applyScale(scaleRef.current + delta, 0, 0)
@@ -247,6 +273,7 @@ export function PinchZoomPan({
 
   const fitToWorld = () => {
     if (!minimap || !viewportRef.current) return
+    animateCanvas(320)
     const rect = viewportRef.current.getBoundingClientRect()
     const pad = 48
     const nextScale = clampScale(
@@ -268,6 +295,7 @@ export function PinchZoomPan({
     (worldX: number, worldY: number) => {
       const el = viewportRef.current
       if (!el) return
+      animateCanvas(260)
       const rect = el.getBoundingClientRect()
       const s = scaleRef.current
       offsetRef.current = {
@@ -277,7 +305,7 @@ export function PinchZoomPan({
       paintCanvas()
       syncMinimap(true)
     },
-    [paintCanvas, syncMinimap],
+    [paintCanvas, syncMinimap, animateCanvas],
   )
 
   return (
@@ -301,6 +329,7 @@ export function PinchZoomPan({
           moved: false,
         }
         interactingRef.current = true
+        setCanvasTransition('none')
         ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
       }}
       onPointerMove={(e) => {
@@ -329,6 +358,7 @@ export function PinchZoomPan({
         }
         drag.current = null
         interactingRef.current = false
+        setCanvasTransition('none')
         syncMinimap(true)
       }}
     >
