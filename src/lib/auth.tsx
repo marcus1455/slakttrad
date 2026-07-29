@@ -18,6 +18,7 @@ type AuthState = {
   /** Returns true if the user is signed in immediately; false if email confirmation is required. */
   signUpWithPassword: (email: string, password: string) => Promise<boolean>
   signInWithEmail: (email: string) => Promise<void>
+  signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -80,6 +81,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error
   }, [])
 
+  const signInWithGoogle = useCallback(async () => {
+    const redirectTo = `${window.location.origin}/auth/callback`
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo },
+    })
+    if (error) throw error
+  }, [])
+
   const signOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
@@ -93,9 +103,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithPassword,
       signUpWithPassword,
       signInWithEmail,
+      signInWithGoogle,
       signOut,
     }),
-    [session, loading, signInWithPassword, signUpWithPassword, signInWithEmail, signOut],
+    [session, loading, signInWithPassword, signUpWithPassword, signInWithEmail, signInWithGoogle, signOut],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

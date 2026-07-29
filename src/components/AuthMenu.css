@@ -232,3 +232,43 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+.auth-menu__divider {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.25rem 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.auth-menu__divider::before,
+.auth-menu__divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-soft);
+}
+
+.auth-menu__oauth {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.55rem 1rem !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--border-soft) !important;
+  border-radius: 6px;
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  color: var(--ink) !important;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.auth-menu__oauth:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--muted) 10%, var(--surface)) !important;
+}
+.auth-menu__oauth:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
