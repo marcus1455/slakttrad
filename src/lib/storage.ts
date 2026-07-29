@@ -401,8 +401,7 @@ export async function inviteTreeCollaborator(
 
   // Fire-and-forget: trigger the invite email via Edge Function.
   // We don't await or throw on failure — the invite is already saved in DB.
-  if (Object.keys(meta).length > 0) {
-    void supabase.functions
+  void supabase.functions
       .invoke('smart-handler', {
         body: {
           email: email.trim(),
@@ -412,7 +411,6 @@ export async function inviteTreeCollaborator(
       .catch(() => {
         // Non-critical — email sending failure doesn't block the invite
       })
-  }
 
   return collaborator
 }

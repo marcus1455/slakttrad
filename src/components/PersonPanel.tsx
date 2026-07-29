@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { useAuth } from '../lib/auth'
 import { useConfirm } from '../lib/confirm'
-import { inviteTreeCollaborator } from '../lib/storage'
+import { inviteTreeCollaborator, type InviteMeta } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import type { FamilyStore, Gender, CivilStatus, LifeEvent, LifeEventType } from '../types'
 import { removePersonPhoto, uploadPersonPhoto } from '../lib/photos'
@@ -259,7 +259,13 @@ export function PersonPanel({
     setInviteOk(null)
     setError(null)
     try {
-      await inviteTreeCollaborator(treeId, normalizedEmail, 'editor')
+      const inviteMeta: InviteMeta = {
+        inviteeName: profile.name || normalizedEmail.split('@')[0],
+        inviterName: user?.user_metadata?.full_name ?? user?.email ?? 'Någon',
+        personName: profile.name || undefined,
+        personPhotoUrl: profile.photoUrl || undefined,
+      }
+      await inviteTreeCollaborator(treeId, normalizedEmail, 'editor', inviteMeta)
       patch(store, selectedId, onChange, { invitedEmail: normalizedEmail })
       setInviteOk(
         `Inbjudan skickad till ${normalizedEmail}. När personen loggar in kan hen koppla kontot till den här profilen.`,
