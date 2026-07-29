@@ -1,11 +1,29 @@
 .tree-title {
   margin: 0.15rem 0 0;
   font-family: var(--font-display);
-  font-size: clamp(1.6rem, 3vw, 2.1rem);
+  font-size: clamp(1.25rem, 3vw, 2.1rem);
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1;
   color: var(--ink);
+}
+
+@media (max-width: 720px) {
+  .tree-title {
+    font-size: 1.2rem;
+    margin: 0.05rem 0 0;
+  }
+
+  .tree-title--button h1 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 45vw;
+  }
+
+  .tree-title__hint {
+    display: none;
+  }
 }
 
 .tree-title--button {

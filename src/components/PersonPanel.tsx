@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, useCallback, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { useAuth } from '../lib/auth'
 import { useConfirm } from '../lib/confirm'
 import { inviteTreeCollaborator } from '../lib/storage'
@@ -326,8 +326,45 @@ export function PersonPanel({
   const eventLabel = (type: LifeEventType) =>
     EVENT_TYPES.find((t) => t.value === type)?.label ?? type
 
+  const panelRef = useRef<HTMLElement>(null)
+  const dragStartY = useRef<number>(0)
+  const isDragging = useRef<boolean>(false)
+
+  const onHandlePointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId)
+    dragStartY.current = e.clientY
+    isDragging.current = true
+  }, [])
+
+  const onHandlePointerMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isDragging.current || !panelRef.current) return
+    const dy = e.clientY - dragStartY.current
+    if (dy > 0) {
+      panelRef.current.style.transform = `translateY(${dy}px)`
+      panelRef.current.style.transition = 'none'
+    }
+  }, [])
+
+  const onHandlePointerUp = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isDragging.current || !panelRef.current) return
+    isDragging.current = false
+    const dy = e.clientY - dragStartY.current
+    panelRef.current.style.transform = ''
+    panelRef.current.style.transition = ''
+    if (dy > 100) {
+      onClose()
+    }
+  }, [onClose])
+
   return (
-    <aside className="person-panel">
+    <aside className="person-panel" ref={panelRef}>
+      <div
+        className="person-panel__drag-handle"
+        onPointerDown={onHandlePointerDown}
+        onPointerMove={onHandlePointerMove}
+        onPointerUp={onHandlePointerUp}
+        aria-hidden
+      />
       <header className="person-panel__header">
         <div>
           <p className="person-panel__eyebrow">{readOnly ? 'Visningsläge' : 'Person'}</p>

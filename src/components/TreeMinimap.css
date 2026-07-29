@@ -64,11 +64,8 @@
   pointer-events: none;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .tree-minimap {
-    right: 0.65rem;
-    bottom: 4.2rem;
-    transform: scale(0.92);
-    transform-origin: bottom right;
+    display: none;
   }
 }

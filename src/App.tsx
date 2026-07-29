@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { BloodEdge } from './components/BloodEdge'
 import { ExportMenu } from './components/ExportMenu'
 import { FamilyMemoryPanel } from './components/FamilyMemoryPanel'
-import { HeaderOverflow } from './components/HeaderOverflow'
 import { HistoryDialog } from './components/HistoryDialog'
 import { AuthMenu } from './components/AuthMenu'
 import { ToastStack, type ToastItem, type ToastTone } from './components/ToastStack'
@@ -957,6 +956,19 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
     return ids.size ? ids : null
   }, [store, hoveredPersonId])
 
+  const headerRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const el = headerRef.current
+    if (!el) return
+    const update = () => {
+      document.documentElement.style.setProperty('--header-h', `${el.offsetHeight}px`)
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   const viewScopeHint =
     treeView.type === 'near'
       ? lockNearFilter
@@ -1008,7 +1020,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
   return (
     <div className="app">
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
-      <header className="app__header">
+      <header className="app__header" ref={headerRef}>
         <div>
           <p className="app__brand">
             Släktträd
@@ -1042,10 +1054,21 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
             {viewScopeHint ? <p className="app__hint app__hint--branch">{viewScopeHint}</p> : null}
           </div>
           <SearchBar store={store} onSelect={onCenter} />
-          <button type="button" className="app__tool" onClick={() => setListOpen(true)}>
+          <button type="button" className="app__tool app__tool--list-label" onClick={() => setListOpen(true)}>
             Öppna personlista
           </button>
-          <HeaderOverflow>
+          <button
+            type="button"
+            className="app__tool app__tool--icon app__tool--list-icon"
+            onClick={() => setListOpen(true)}
+            title="Öppna personlista"
+            aria-label="Öppna personlista"
+          >
+            <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden>
+              <path fill="currentColor" d="M3 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm0 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm0 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Z"/>
+            </svg>
+          </button>
+          <span className="app__header-desktop-only">
             <TreeViewMenu
               store={store}
               view={treeView}
@@ -1054,40 +1077,42 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
               onChangeLayoutMode={onChangeLayoutMode}
               lockNearFilter={lockNearFilter}
             />
-            {!readOnly ? (
-              <>
-                <button
-                  type="button"
-                  className="app__tool app__tool--icon app__tool--quiet"
-                  onClick={onUndo}
-                  disabled={history.past.length === 0}
-                  title="Ångra (Ctrl+Z)"
-                  aria-label="Ångra"
-                >
-                  <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden>
-                    <path
-                      fill="currentColor"
-                      d="M7.2 4.3 3.5 8l3.7 3.7a.9.9 0 0 0 1.3-1.3L6.9 8.9H12a3.6 3.6 0 0 1 0 7.2H9.2a.9.9 0 1 0 0 1.8H12a5.4 5.4 0 1 0 0-10.8H6.9l1.6-1.5a.9.9 0 1 0-1.3-1.3Z"
-                    />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  className="app__tool app__tool--icon app__tool--quiet"
-                  onClick={onRedo}
-                  disabled={history.future.length === 0}
-                  title="Gör om (Ctrl+Shift+Z)"
-                  aria-label="Gör om"
-                >
-                  <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden>
-                    <path
-                      fill="currentColor"
-                      d="M12.8 4.3a.9.9 0 0 0-1.3 1.3L13.1 7.1H8a5.4 5.4 0 1 0 0 10.8h2.8a.9.9 0 1 0 0-1.8H8a3.6 3.6 0 1 1 0-7.2h5.1l-1.6 1.5a.9.9 0 1 0 1.3 1.3L16.5 8l-3.7-3.7Z"
-                    />
-                  </svg>
-                </button>
-              </>
-            ) : null}
+          </span>
+          {!readOnly ? (
+            <>
+              <button
+                type="button"
+                className="app__tool app__tool--icon app__tool--quiet app__header-desktop-only"
+                onClick={onUndo}
+                disabled={history.past.length === 0}
+                title="Ångra (Ctrl+Z)"
+                aria-label="Ångra"
+              >
+                <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden>
+                  <path
+                    fill="currentColor"
+                    d="M7.2 4.3 3.5 8l3.7 3.7a.9.9 0 0 0 1.3-1.3L6.9 8.9H12a3.6 3.6 0 0 1 0 7.2H9.2a.9.9 0 1 0 0 1.8H12a5.4 5.4 0 1 0 0-10.8H6.9l1.6-1.5a.9.9 0 1 0-1.3-1.3Z"
+                  />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="app__tool app__tool--icon app__tool--quiet app__header-desktop-only"
+                onClick={onRedo}
+                disabled={history.future.length === 0}
+                title="Gör om (Ctrl+Shift+Z)"
+                aria-label="Gör om"
+              >
+                <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden>
+                  <path
+                    fill="currentColor"
+                    d="M12.8 4.3a.9.9 0 0 0-1.3 1.3L13.1 7.1H8a5.4 5.4 0 1 0 0 10.8h2.8a.9.9 0 1 0 0-1.8H8a3.6 3.6 0 1 1 0-7.2h5.1l-1.6 1.5a.9.9 0 1 0 1.3 1.3L16.5 8l-3.7-3.7Z"
+                  />
+                </svg>
+              </button>
+            </>
+          ) : null}
+          <span className="app__header-desktop-only">
             <ExportMenu
               store={store}
               treeName={meta.name}
@@ -1098,7 +1123,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
               onImport={(next) => onChange(next)}
               onOpenHistory={() => setHistoryOpen(true)}
             />
-          </HeaderOverflow>
+          </span>
           {isGuestMode ? (
             <button
               type="button"

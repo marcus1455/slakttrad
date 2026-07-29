@@ -107,7 +107,9 @@
   border-bottom: 1px solid var(--border-soft);
   background: color-mix(in srgb, var(--surface) 90%, transparent);
   backdrop-filter: blur(10px);
-  z-index: 20;
+  z-index: 55;
+  flex-shrink: 0;
+  position: relative;
 }
 
 .app__brand {
@@ -339,26 +341,66 @@
 
 @media (max-width: 720px) {
   .app__header {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.85rem;
+  }
+
+  .app__brand {
+    display: none;
+  }
+
+  .app__header > div:first-child {
+    min-width: 0;
+    flex-shrink: 1;
   }
 
   .app__header-actions {
-    width: 100%;
-    justify-content: flex-start;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    gap: 0.35rem;
   }
 
   .app__header-actions .search-bar {
-    width: min(160px, 36vw);
-    flex: 1 1 8rem;
+    width: min(130px, 30vw);
+    flex: 1 1 6rem;
     min-width: 0;
   }
 
+  /* "Öppna personlista" — visa bara som ikon på mobil */
+  .app__tool--list-label {
+    display: none;
+  }
+
+  .app__tool--list-icon {
+    display: inline-flex;
+  }
+
+  .app__hint--branch {
+    display: none;
+  }
+
   .app__hint {
-    width: 100%;
+    display: none;
+  }
+
+  /* Dölj vy-filter, ångra/gör om och export på mobil */
+  .app__header-desktop-only {
+    display: none;
   }
 
   .app__coach {
     bottom: 1rem;
   }
+}
+
+/* Desktop: dölj ikon-varianten av personlista */
+.app__tool--list-icon {
+  display: none;
+}
+
+/* Desktop-only items visas alltid på stor skärm */
+.app__header-desktop-only {
+  display: contents;
 }
