@@ -1470,6 +1470,7 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
             url={shareUrlForToken(meta.shareToken)}
             treeId={meta.id}
             treeSlug={meta.slug}
+            treeName={meta.name}
             canInvite={
               !!user &&
               (meta.ownerId == null || meta.ownerId === user.id)

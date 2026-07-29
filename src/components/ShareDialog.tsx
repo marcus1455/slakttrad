@@ -9,15 +9,18 @@ import {
   setTreeCollaboratorRole,
   type CollaboratorRole,
   type TreeCollaborator,
+  type InviteMeta,
 } from '../lib/storage'
 import { useFocusTrap } from '../lib/useFocusTrap'
 import type { TreeMeta } from '../types'
+import { displayNameFromUser } from '../lib/userDisplay'
 import './ShareDialog.css'
 
 type Props = {
   url: string
   treeId: string
   treeSlug: string
+  treeName?: string
   /** True when the signed-in user may invite/remove collaborators. */
   canInvite: boolean
   onRotated: (meta: TreeMeta) => void
@@ -33,6 +36,7 @@ export function ShareDialog({
   url,
   treeId,
   treeSlug,
+  treeName,
   canInvite,
   onRotated,
   onClose,
@@ -99,7 +103,12 @@ export function ShareDialog({
     setInviteOk(null)
     setError(null)
     try {
-      const row = await inviteTreeCollaborator(treeId, inviteEmail, inviteRole)
+      const inviteMeta: InviteMeta = {
+        inviteeName: inviteEmail.split('@')[0],
+        treeName,
+        inviterName: user ? displayNameFromUser(user) : undefined,
+      }
+      const row = await inviteTreeCollaborator(treeId, inviteEmail, inviteRole, inviteMeta)
       setInviteEmail('')
       setInviteOk(
         inviteRole === 'editor'

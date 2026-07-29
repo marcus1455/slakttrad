@@ -364,10 +364,24 @@ export async function listTreeCollaborators(treeId: string): Promise<TreeCollabo
   )
 }
 
+export type InviteMeta = {
+  /** Display name of the person being invited (shown in email) */
+  inviteeName?: string
+  /** Display name of the person sending the invite */
+  inviterName?: string
+  /** Name of the tree */
+  treeName?: string
+  /** Name of the person node this invite is linked to */
+  personName?: string
+  /** Public photo URL of the person node */
+  personPhotoUrl?: string
+}
+
 export async function inviteTreeCollaborator(
   treeId: string,
   email: string,
   role: CollaboratorRole = 'editor',
+  meta: InviteMeta = {},
 ): Promise<TreeCollaborator> {
   const { data, error } = await supabase.rpc('invite_tree_collaborator', {
     p_tree_id: treeId,
@@ -375,7 +389,7 @@ export async function inviteTreeCollaborator(
     p_role: role,
   })
   if (error) throw error
-  return mapCollaboratorRow(
+  const collaborator = mapCollaboratorRow(
     data as {
       id: string
       email: string
@@ -384,6 +398,23 @@ export async function inviteTreeCollaborator(
       created_at: string
     },
   )
+
+  // Fire-and-forget: trigger the invite email via Edge Function.
+  // We don't await or throw on failure — the invite is already saved in DB.
+  if (Object.keys(meta).length > 0) {
+    void supabase.functions
+      .invoke('smart-handler', {
+        body: {
+          email: email.trim(),
+          meta,
+        },
+      })
+      .catch(() => {
+        // Non-critical — email sending failure doesn't block the invite
+      })
+  }
+
+  return collaborator
 }
 
 export async function setTreeCollaboratorRole(
