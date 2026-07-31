@@ -1205,7 +1205,8 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
                   const key = edgeKey(edge)
                   const relatedToHover =
                     !!hoveredRelationIds &&
-                    (hoveredRelationIds.has(aId) || hoveredRelationIds.has(bId))
+                    hoveredRelationIds.has(aId) &&
+                    hoveredRelationIds.has(bId)
                   const active =
                     sameEdge(selectedEdge, edge) ||
                     sameEdge(hoveredEdge, edge) ||
@@ -1238,7 +1239,8 @@ function TreeApp({ mode, slug, shareToken }: TreeAppProps) {
                   const key = edgeKey(edge)
                   const relatedToHover =
                     !!hoveredRelationIds &&
-                    [...childIds, ...parentIds].some((id) => hoveredRelationIds.has(id))
+                    parentIds.some((id) => hoveredRelationIds.has(id)) &&
+                    childIds.some((id) => hoveredRelationIds.has(id))
                   const active =
                     sameEdge(selectedEdge, edge) ||
                     sameEdge(hoveredEdge, edge) ||

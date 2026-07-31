@@ -145,6 +145,7 @@ function UserAvatar({
         alt=""
         width={size}
         height={size}
+        referrerPolicy="no-referrer"
         onError={() => setBroken(true)}
       />
     )

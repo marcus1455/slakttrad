@@ -35,6 +35,7 @@ function PeerAvatar({
         height={size}
         title={title}
         style={{ borderColor: peer.color }}
+        referrerPolicy="no-referrer"
         onError={() => setBroken(true)}
       />
     )

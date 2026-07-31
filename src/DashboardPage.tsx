@@ -287,6 +287,7 @@ export function DashboardPage() {
                 alt=""
                 width={56}
                 height={56}
+                referrerPolicy="no-referrer"
               />
             ) : (
               <span className="dashboard__avatar dashboard__avatar--initials" aria-hidden>

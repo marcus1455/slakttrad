@@ -73,6 +73,7 @@ function AccountAvatar({
         alt=""
         width={96}
         height={96}
+        referrerPolicy="no-referrer"
         onError={() => setBroken(true)}
       />
     ) : (

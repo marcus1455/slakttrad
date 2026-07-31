@@ -25,11 +25,22 @@ export function initialsFromName(name: string): string {
 
 export function avatarUrlFromUser(user: User): string | null {
   const meta = user.user_metadata ?? {}
-  const url =
-    (typeof meta.avatar_url === 'string' && meta.avatar_url) ||
-    (typeof meta.picture === 'string' && meta.picture) ||
+  const fromMeta =
+    (typeof meta.avatar_url === 'string' && meta.avatar_url.trim()) ||
+    (typeof meta.picture === 'string' && meta.picture.trim()) ||
     null
-  return url
+  if (fromMeta) return fromMeta
+
+  // Google / OAuth often stores the photo on the identity, not top-level metadata
+  for (const identity of user.identities ?? []) {
+    const data = identity.identity_data ?? {}
+    const url =
+      (typeof data.avatar_url === 'string' && data.avatar_url.trim()) ||
+      (typeof data.picture === 'string' && data.picture.trim()) ||
+      null
+    if (url) return url
+  }
+  return null
 }
 
 /** Person id linked to this account (set in app_metadata when claiming a node). */
