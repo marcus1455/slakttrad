@@ -11,7 +11,7 @@
   position: absolute;
   inset: 0;
   border: none;
-  background: rgba(28, 36, 28, 0.28);
+  background: rgba(28, 36, 28, 0.4);
   cursor: pointer;
 }
 
@@ -19,185 +19,136 @@
   position: relative;
   z-index: 1;
   display: flex;
-  width: min(460px, 100%);
-  max-height: min(92vh, 720px);
+  width: min(480px, 100%);
+  max-height: min(92vh, 640px);
   flex-direction: column;
-  gap: 0.85rem;
-  padding: 1.25rem 1.3rem 1.35rem;
+  gap: 1rem;
+  padding: 1.15rem 1.25rem 1.25rem;
   overflow: auto;
   border: 1px solid var(--border-soft);
-  border-radius: 18px;
+  border-radius: 14px;
   background: var(--surface);
-  box-shadow: 0 24px 50px rgba(28, 36, 28, 0.2);
-}
-
-.share-dialog__section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-  padding-top: 0.35rem;
-  border-top: 1px solid var(--border-soft);
-}
-
-.share-dialog__section:first-of-type {
-  border-top: none;
-  padding-top: 0;
-}
-
-.share-dialog__section h4 {
-  margin: 0;
-  font-family: var(--font-ui);
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: var(--ink);
-}
-
-.share-dialog__invite {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-}
-
-.share-dialog__invite select,
-.share-dialog__field select,
-.share-dialog__collab-main select {
-  width: 100%;
-  padding: 0.65rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--ink);
-  font-family: var(--font-ui);
-  font-size: 0.82rem;
-}
-
-.share-dialog__invite-submit {
-  align-self: stretch;
-  padding: 0.7rem 0.85rem;
-  border: 1px solid var(--teal);
-  border-radius: var(--radius);
-  background: var(--teal);
-  color: #f7faf7;
-  font-family: var(--font-ui);
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.share-dialog__invite-submit:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.share-dialog__ok {
-  margin: 0;
-  font-family: var(--font-ui);
-  font-size: 0.82rem;
-  color: var(--teal);
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.share-dialog__collab-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.share-dialog__collab-list li {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.55rem 0.6rem;
-  border: 1px solid var(--border-soft);
-  border-radius: 10px;
-  font-family: var(--font-ui);
-  font-size: 0.82rem;
-  color: var(--ink);
-}
-
-.share-dialog__collab-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.share-dialog__collab-main select {
-  padding: 0.4rem 0.5rem;
-  font-size: 0.78rem;
-}
-
-.share-dialog__collab-list button {
-  flex-shrink: 0;
-  margin-top: 0.1rem;
-  padding: 0.25rem 0.45rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.share-dialog__pending {
-  font-style: normal;
-  color: var(--muted);
-  font-weight: 500;
+  box-shadow: 0 24px 50px rgba(28, 36, 28, 0.22);
 }
 
 .share-dialog__header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
 }
 
-.share-dialog__header p {
+.share-dialog__title {
   margin: 0;
+  min-width: 0;
   font-family: var(--font-ui);
-  font-size: 0.72rem;
+  font-size: 1.05rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
+  color: var(--ink);
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.share-dialog__header h3 {
-  margin: 0.2rem 0 0;
-  font-family: var(--font-display);
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--ink);
+.share-dialog__header-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.share-dialog__copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.65rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--teal);
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.share-dialog__copy:hover {
+  background: color-mix(in srgb, var(--teal) 10%, transparent);
 }
 
 .share-dialog__close {
-  flex-shrink: 0;
   display: grid;
   place-items: center;
   width: 2rem;
   height: 2rem;
-  margin: -0.25rem -0.35rem 0 0;
   padding: 0;
   border: 0;
-  border-radius: 999px;
+  border-radius: 8px;
   background: transparent;
   color: var(--muted);
-  font-size: 1.45rem;
+  font-size: 1.35rem;
   line-height: 1;
   cursor: pointer;
 }
 
 .share-dialog__close:hover {
-  background: color-mix(in srgb, var(--muted) 10%, transparent);
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
   color: var(--ink);
+}
+
+.share-dialog__invite {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.share-dialog__invite input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.7rem 0.85rem;
+  border: 1.5px solid var(--teal);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 0.88rem;
+}
+
+.share-dialog__invite input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 18%, transparent);
+}
+
+.share-dialog__invite input::placeholder {
+  color: color-mix(in srgb, var(--ink) 45%, var(--muted));
+}
+
+.share-dialog__invite button {
+  flex-shrink: 0;
+  padding: 0.7rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--muted) 18%, var(--surface));
+  color: color-mix(in srgb, var(--ink) 55%, var(--muted));
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.share-dialog__invite button:not(:disabled) {
+  background: var(--teal);
+  color: #f7faf7;
+  border-color: var(--teal);
+}
+
+.share-dialog__invite button:not(:disabled):hover {
+  background: color-mix(in srgb, var(--teal) 88%, #000);
+}
+
+.share-dialog__invite button:disabled {
+  cursor: not-allowed;
 }
 
 .share-dialog__lead {
@@ -208,79 +159,166 @@
   color: var(--muted);
 }
 
-.share-dialog__field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+.share-dialog__access h4 {
+  margin: 0 0 0.55rem;
   font-family: var(--font-ui);
   font-size: 0.78rem;
-  font-weight: 600;
-  color: color-mix(in srgb, var(--ink) 78%, var(--muted));
+  font-weight: 650;
+  color: var(--muted);
 }
 
-.share-dialog__url-row {
+.share-dialog__access-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
+  flex-direction: column;
+}
+
+.share-dialog__access-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.35rem;
+  border-radius: 10px;
+}
+
+.share-dialog__access-row:hover {
+  background: color-mix(in srgb, var(--muted) 8%, transparent);
+}
+
+.share-dialog__access-row--muted {
+  justify-content: flex-start;
+}
+
+.share-dialog__access-who {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.share-dialog__access-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.share-dialog__access-name {
+  font-family: var(--font-ui);
+  font-size: 0.88rem;
+  font-weight: 650;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-dialog__access-name em {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.share-dialog__access-meta {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-dialog__access-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
   gap: 0.45rem;
 }
 
-.share-dialog__url-row input {
-  flex: 1;
-  min-width: 0;
-  padding: 0.65rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--ink);
-  font-family: var(--font-ui);
-  font-size: 0.82rem;
-}
-
-.share-dialog__url-row button {
+.share-dialog__avatar {
   flex-shrink: 0;
-  padding: 0.65rem 0.85rem;
-  border: 1px solid var(--teal);
-  border-radius: var(--radius);
-  background: var(--teal);
-  color: #f7faf7;
-  font-family: var(--font-ui);
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
-.share-dialog__quiet {
-  align-self: flex-start;
-  padding: 0.25rem 0;
-  border: 0;
+.share-dialog__avatar--initials,
+.share-dialog__avatar--globe {
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--teal) 14%, var(--surface));
+  color: var(--teal);
+  font-family: var(--font-ui);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.share-dialog__role-label {
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.share-dialog__role-select {
+  max-width: 8.5rem;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
   background: transparent;
   color: var(--muted);
   font-family: var(--font-ui);
-  font-size: 0.78rem;
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 0.18em;
+  font-size: 0.8rem;
+  font-weight: 500;
   cursor: pointer;
 }
 
-.share-dialog__quiet:hover {
+.share-dialog__role-select:hover,
+.share-dialog__role-select:focus {
+  border-color: var(--border-soft);
+  background: var(--surface);
   color: var(--ink);
+  outline: none;
 }
 
-.share-dialog__quiet:disabled {
+.share-dialog__revoke,
+.share-dialog__remove {
+  padding: 0.25rem 0.4rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.share-dialog__revoke:hover,
+.share-dialog__remove:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
+}
+
+.share-dialog__revoke:disabled {
   opacity: 0.55;
   cursor: default;
 }
 
-.share-dialog__field input[type='email'] {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 0.65rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--ink);
+.share-dialog__ok {
+  margin: 0.35rem 0 0;
   font-family: var(--font-ui);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
+  color: var(--teal);
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .share-dialog__error {
@@ -288,4 +326,21 @@
   color: var(--danger);
   font-family: var(--font-ui);
   font-size: 0.85rem;
+}
+
+@media (max-width: 520px) {
+  .share-dialog__invite {
+    flex-direction: column;
+  }
+
+  .share-dialog__access-row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .share-dialog__access-actions {
+    width: 100%;
+    padding-left: calc(32px + 0.7rem);
+    justify-content: flex-start;
+  }
 }

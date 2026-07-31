@@ -33,7 +33,7 @@ export function listSurnames(store: FamilyStore): string[] {
 
 /**
  * People near a focus person: self, partner, parents, siblings, children,
- * grandparents, aunts/uncles, cousins — plus spouses of everyone included.
+ * grandchildren, grandparents, aunts/uncles, cousins — plus spouses of everyone included.
  */
 export function nearIds(store: FamilyStore, focusId: string): Set<string> {
   const nodes = new Map(store.nodes.map((n) => [n.id, n]))
@@ -57,6 +57,13 @@ export function nearIds(store: FamilyStore, focusId: string): Set<string> {
     if (!parent) continue
     for (const s of parent.spouses) add(s.id)
     for (const sib of parent.children) add(sib.id)
+  }
+
+  // Grandchildren = children of children.
+  for (const childRel of focus.children) {
+    const child = nodes.get(childRel.id)
+    if (!child) continue
+    for (const gc of child.children) add(gc.id)
   }
 
   // Aunts/uncles = siblings of parents (via grandparents' children).

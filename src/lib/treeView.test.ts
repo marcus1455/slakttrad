@@ -180,6 +180,21 @@ describe('nearIds', () => {
     expect(near.has('camilla')).toBe(false)
   })
 
+  it('includes grandchildren when grandmother Ulla is focus, not paternal grandparents', () => {
+    const store = ohrnerFixture()
+    const near = nearIds(store, 'ulla')
+
+    expect(near.has('ulla')).toBe(true)
+    expect(near.has('staffan')).toBe(true)
+    expect(near.has('asa')).toBe(true)
+    expect(near.has('camilla')).toBe(true)
+    expect(near.has('robert')).toBe(true) // child's spouse
+    expect(near.has('marcus')).toBe(true)
+    expect(near.has('alexander')).toBe(true)
+
+    expect(near.has('lars')).toBe(false)
+  })
+
   it('nodesForView uses explicit focusId for near, not only store.rootId', () => {
     const store = ohrnerFixture()
     const nodes = nodesForView(store, { type: 'near' }, 'julia')
