@@ -5,7 +5,7 @@ import { LoadingScreen } from './components/LoadingScreen'
 import { useAuth } from './lib/auth'
 import './WelcomeGate.css'
 
-type AuthMode = 'login' | 'register'
+type AuthMode = 'login' | 'register' | 'forgot'
 
 function GoogleIcon() {
   return (
@@ -32,8 +32,15 @@ function GoogleIcon() {
 
 /** `/` — welcome when signed out, dashboard (pick a tree) when signed in. */
 export function NewTreeRedirect() {
-  const { user, loading, signInWithPassword, signUpWithPassword, signInWithEmail, signInWithGoogle } =
-    useAuth()
+  const {
+    user,
+    loading,
+    signInWithPassword,
+    signUpWithPassword,
+    signInWithEmail,
+    signInWithGoogle,
+    resetPassword,
+  } = useAuth()
   const [mode, setMode] = useState<AuthMode>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -49,28 +56,47 @@ export function NewTreeRedirect() {
     return <DashboardPage />
   }
 
+  const title =
+    mode === 'register'
+      ? 'Skapa konto'
+      : mode === 'forgot'
+        ? 'Återställ lösenord'
+        : 'Välkommen tillbaka'
+
+  const lead =
+    mode === 'register'
+      ? 'Skapa ett konto för att spara träd i molnet och bjuda in familjen.'
+      : mode === 'forgot'
+        ? 'Ange din e-post så skickar vi en länk för att välja nytt lösenord.'
+        : 'Logga in för att se dina träd — eller skissa vidare utan konto.'
+
   const submitLabel =
     status === 'sending'
       ? mode === 'register'
         ? 'Skapar konto…'
-        : 'Loggar in…'
+        : mode === 'forgot'
+          ? 'Skickar…'
+          : 'Loggar in…'
       : mode === 'register'
         ? 'Skapa konto'
-        : 'Logga in'
+        : mode === 'forgot'
+          ? 'Skicka återställningslänk'
+          : 'Logga in'
+
+  const sentMessage =
+    mode === 'register'
+      ? 'Konto skapat — kolla din inkorg och bekräfta e-posten.'
+      : mode === 'forgot'
+        ? 'Kolla din inkorg för länken till att välja nytt lösenord.'
+        : 'Kolla din inkorg för länken vi skickade.'
 
   return (
     <div className="welcome-gate">
       <div className="welcome-gate__glow" aria-hidden />
       <div className="welcome-gate__panel">
         <p className="welcome-gate__brand">Släktträd</p>
-        <h1 className="welcome-gate__title">
-          {mode === 'register' ? 'Skapa konto' : 'Välkommen tillbaka'}
-        </h1>
-        <p className="welcome-gate__lead">
-          {mode === 'register'
-            ? 'Skapa ett konto för att spara träd i molnet och bjuda in familjen.'
-            : 'Logga in för att se dina träd — eller skissa vidare utan konto.'}
-        </p>
+        <h1 className="welcome-gate__title">{title}</h1>
+        <p className="welcome-gate__lead">{lead}</p>
 
         <form
           className="welcome-gate__form"
@@ -92,6 +118,10 @@ export function NewTreeRedirect() {
                   setStatus('sent')
                   return
                 }
+              } else if (mode === 'forgot') {
+                await resetPassword(email)
+                setStatus('sent')
+                return
               } else {
                 await signInWithPassword(email, password)
               }
@@ -116,18 +146,20 @@ export function NewTreeRedirect() {
               onChange={(e) => setEmail(e.target.value)}
             />
           </label>
-          <label>
-            Lösenord
-            <input
-              type="password"
-              required
-              minLength={6}
-              autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
-              placeholder="Minst 6 tecken"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </label>
+          {mode === 'login' || mode === 'register' ? (
+            <label>
+              Lösenord
+              <input
+                type="password"
+                required
+                minLength={6}
+                autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+                placeholder="Minst 6 tecken"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
+          ) : null}
           {mode === 'register' ? (
             <label>
               Upprepa lösenord
@@ -144,11 +176,7 @@ export function NewTreeRedirect() {
           ) : null}
 
           {status === 'sent' ? (
-            <p className="welcome-gate__ok">
-              {mode === 'register'
-                ? 'Konto skapat — kolla din inkorg och bekräfta e-posten.'
-                : 'Kolla din inkorg för länken vi skickade.'}
-            </p>
+            <p className="welcome-gate__ok">{sentMessage}</p>
           ) : null}
           {formError ? <p className="welcome-gate__error">{formError}</p> : null}
 
@@ -159,52 +187,81 @@ export function NewTreeRedirect() {
           >
             {submitLabel}
           </button>
-          <div className="welcome-gate__divider">
-            <span>eller</span>
-          </div>
-          <button
-            type="button"
-            className="welcome-gate__oauth"
-            disabled={status === 'sending'}
-            onClick={async () => {
-              setStatus('sending')
-              setFormError(null)
-              try {
-                sessionStorage.setItem('auth_next', '/')
-                await signInWithGoogle()
-              } catch (err) {
-                setStatus('error')
-                setFormError(
-                  err instanceof Error ? err.message : 'Kunde inte logga in med Google',
-                )
-              }
-            }}
-          >
-            <GoogleIcon />
-            <span>{mode === 'register' ? 'Skapa konto med Google' : 'Logga in med Google'}</span>
-          </button>
+
+          {mode !== 'forgot' ? (
+            <>
+              <div className="welcome-gate__divider">
+                <span>eller</span>
+              </div>
+              <button
+                type="button"
+                className="welcome-gate__oauth"
+                disabled={status === 'sending'}
+                onClick={async () => {
+                  setStatus('sending')
+                  setFormError(null)
+                  try {
+                    sessionStorage.setItem('auth_next', '/')
+                    await signInWithGoogle()
+                  } catch (err) {
+                    setStatus('error')
+                    setFormError(
+                      err instanceof Error
+                        ? err.message
+                        : 'Kunde inte logga in med Google',
+                    )
+                  }
+                }}
+              >
+                <GoogleIcon />
+                <span>
+                  {mode === 'register' ? 'Skapa konto med Google' : 'Logga in med Google'}
+                </span>
+              </button>
+            </>
+          ) : null}
+
           {mode === 'login' ? (
-            <button
-              type="button"
-              className="welcome-gate__magic"
-              disabled={status === 'sending' || !email.trim()}
-              onClick={async () => {
-                setStatus('sending')
-                setFormError(null)
-                try {
-                  sessionStorage.setItem('auth_next', '/')
-                  await signInWithEmail(email)
-                  setStatus('sent')
-                } catch (err) {
-                  setStatus('error')
-                  setFormError(
-                    err instanceof Error ? err.message : 'Kunde inte skicka magisk länk',
-                  )
-                }
-              }}
-            >
-              Skicka magisk länk
-            </button>
+            <>
+              {email.trim() ? (
+                <button
+                  type="button"
+                  className="welcome-gate__magic"
+                  disabled={status === 'sending'}
+                  onClick={async () => {
+                    setStatus('sending')
+                    setFormError(null)
+                    try {
+                      sessionStorage.setItem('auth_next', '/')
+                      await signInWithEmail(email)
+                      setStatus('sent')
+                    } catch (err) {
+                      setStatus('error')
+                      setFormError(
+                        err instanceof Error
+                          ? err.message
+                          : 'Kunde inte skicka magisk länk',
+                      )
+                    }
+                  }}
+                >
+                  Skicka magisk länk
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="welcome-gate__magic"
+                disabled={status === 'sending'}
+                onClick={() => {
+                  setMode('forgot')
+                  setStatus('idle')
+                  setFormError(null)
+                  setPassword('')
+                }}
+              >
+                Glömt lösenord?
+              </button>
+            </>
           ) : null}
         </form>
 
@@ -233,7 +290,7 @@ export function NewTreeRedirect() {
                 setPasswordConfirm('')
               }}
             >
-              Har du redan konto? Logga in
+              Tillbaka till inloggning
             </button>
           )}
           <span className="welcome-gate__dot" aria-hidden>

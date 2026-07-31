@@ -183,7 +183,7 @@ function GoogleIcon() {
   )
 }
 
-type AuthMode = 'password' | 'register' | 'magic'
+type AuthMode = 'password' | 'register' | 'magic' | 'forgot'
 
 type Props = {
   /** Show text label next to the icon (e.g. on the login gate). */
@@ -201,6 +201,7 @@ export function AuthMenu({ showLabel = false, avatarUrl: avatarOverride }: Props
     signUpWithPassword,
     signInWithEmail,
     signInWithGoogle,
+    resetPassword,
     signOut,
   } = useAuth()
   const [open, setOpen] = useState(false)
@@ -319,26 +320,36 @@ export function AuthMenu({ showLabel = false, avatarUrl: avatarOverride }: Props
     : 'app__tool app__tool--icon app__tool--quiet'
 
   const title =
-    mode === 'register' ? 'Skapa konto' : mode === 'magic' ? 'Magisk länk' : 'Logga in'
+    mode === 'register'
+      ? 'Skapa konto'
+      : mode === 'magic'
+        ? 'Magisk länk'
+        : mode === 'forgot'
+          ? 'Återställ lösenord'
+          : 'Logga in'
   const hint =
     mode === 'register'
       ? 'Fyll i e-post och lösenord för att skapa ett konto.'
       : mode === 'magic'
         ? 'Vi skickar en inloggningslänk till din inkorg.'
-        : 'Logga in med e-post och lösenord.'
+        : mode === 'forgot'
+          ? 'Vi skickar en länk så du kan välja ett nytt lösenord.'
+          : 'Logga in med e-post och lösenord.'
 
   const submitLabel =
     status === 'sending'
       ? mode === 'register'
         ? 'Skapar…'
-        : mode === 'magic'
+        : mode === 'magic' || mode === 'forgot'
           ? 'Skickar…'
           : 'Loggar in…'
       : mode === 'register'
         ? 'Skapa konto'
         : mode === 'magic'
           ? 'Skicka länk'
-          : 'Logga in'
+          : mode === 'forgot'
+            ? 'Skicka återställningslänk'
+            : 'Logga in'
 
   return (
     <div className="auth-menu" ref={rootRef}>
@@ -390,6 +401,9 @@ export function AuthMenu({ showLabel = false, avatarUrl: avatarOverride }: Props
                 setOpen(false)
                 setPassword('')
                 setStatus('idle')
+              } else if (mode === 'forgot') {
+                await resetPassword(email)
+                setStatus('sent')
               } else {
                 await signInWithEmail(email)
                 setStatus('sent')
@@ -446,32 +460,38 @@ export function AuthMenu({ showLabel = false, avatarUrl: avatarOverride }: Props
             <p className="auth-menu__ok">
               {mode === 'register'
                 ? 'Konto skapat — kolla din inkorg och bekräfta e-posten.'
-                : 'Kolla din inkorg och klicka på länken.'}
+                : mode === 'forgot'
+                  ? 'Kolla din inkorg för länken till att välja nytt lösenord.'
+                  : 'Kolla din inkorg och klicka på länken.'}
             </p>
           ) : null}
           {error ? <p className="auth-menu__error">{error}</p> : null}
           <button type="submit" disabled={status === 'sending' || status === 'sent'}>
             {submitLabel}
           </button>
-          <div className="auth-menu__divider"><span>eller</span></div>
-          <button
-            type="button"
-            className="auth-menu__oauth"
-            onClick={async () => {
-              setStatus('sending')
-              setError(null)
-              try {
-                await signInWithGoogle()
-              } catch (err) {
-                setStatus('error')
-                setError(err instanceof Error ? err.message : 'Kunde inte logga in med Google')
-              }
-            }}
-            disabled={status === 'sending'}
-          >
-            <GoogleIcon />
-            <span>Fortsätt med Google</span>
-          </button>
+          {mode !== 'forgot' ? (
+            <>
+              <div className="auth-menu__divider"><span>eller</span></div>
+              <button
+                type="button"
+                className="auth-menu__oauth"
+                onClick={async () => {
+                  setStatus('sending')
+                  setError(null)
+                  try {
+                    await signInWithGoogle()
+                  } catch (err) {
+                    setStatus('error')
+                    setError(err instanceof Error ? err.message : 'Kunde inte logga in med Google')
+                  }
+                }}
+                disabled={status === 'sending'}
+              >
+                <GoogleIcon />
+                <span>Fortsätt med Google</span>
+              </button>
+            </>
+          ) : null}
           {mode === 'password' ? (
             <>
               <button
@@ -496,6 +516,17 @@ export function AuthMenu({ showLabel = false, avatarUrl: avatarOverride }: Props
                 }}
               >
                 Använd magisk länk istället
+              </button>
+              <button
+                type="button"
+                className="auth-menu__switch"
+                onClick={() => {
+                  setMode('forgot')
+                  setStatus('idle')
+                  setError(null)
+                }}
+              >
+                Glömt lösenord?
               </button>
             </>
           ) : (

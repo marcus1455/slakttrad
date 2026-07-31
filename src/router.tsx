@@ -3,6 +3,7 @@ import { AccountPage } from './AccountPage'
 import TreeApp from './App'
 import { AuthCallbackPage } from './AuthCallbackPage'
 import { FallbackToNew, NewTreeRedirect } from './NewTreeRedirect'
+import { ResetPasswordPage } from './ResetPasswordPage'
 import { AuthProvider } from './lib/auth'
 import { ConfirmProvider } from './lib/confirm'
 import { DEFAULT_TREE_SLUG } from './lib/supabase'
@@ -26,6 +27,7 @@ export function AppRouter() {
             <Route path="/" element={<NewTreeRedirect />} />
             <Route path="/gast" element={<TreeApp mode="guest" />} />
             <Route path="/konto/*" element={<AccountPage />} />
+            <Route path="/aterstall-losenord" element={<ResetPasswordPage />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/trad/:slug" element={<EditTreePage />} />
             <Route path="/dela/:token" element={<ShareTreePage />} />

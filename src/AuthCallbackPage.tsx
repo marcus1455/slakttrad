@@ -3,13 +3,29 @@ import { useNavigate } from 'react-router-dom'
 import { LoadingScreen } from './components/LoadingScreen'
 import { supabase } from './lib/supabase'
 
-/** Completes magic-link login and returns to home / previous tree. */
+function isPasswordRecoveryCallback(): boolean {
+  const search = new URLSearchParams(window.location.search)
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  return (
+    search.get('type') === 'recovery' ||
+    hash.get('type') === 'recovery' ||
+    sessionStorage.getItem('auth_recovery') === '1'
+  )
+}
+
+/** Completes magic-link / OAuth / password-recovery and returns to the app. */
 export function AuthCallbackPage() {
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        sessionStorage.setItem('auth_recovery', '1')
+      }
+    })
+
     ;(async () => {
       try {
         // Handles both PKCE (?code=) and implicit (#access_token) callbacks
@@ -23,6 +39,13 @@ export function AuthCallbackPage() {
           if (sessionError) throw sessionError
         }
         if (cancelled) return
+
+        if (isPasswordRecoveryCallback()) {
+          sessionStorage.removeItem('auth_recovery')
+          navigate('/aterstall-losenord', { replace: true })
+          return
+        }
+
         const next = sessionStorage.getItem('auth_next') ?? '/'
         sessionStorage.removeItem('auth_next')
         navigate(next, { replace: true })
@@ -33,6 +56,7 @@ export function AuthCallbackPage() {
     })()
     return () => {
       cancelled = true
+      sub.subscription.unsubscribe()
     }
   }, [navigate])
 
