@@ -368,15 +368,6 @@
     min-width: 0;
   }
 
-  /* "Öppna personlista" — visa bara som ikon på mobil */
-  .app__tool--list-label {
-    display: none;
-  }
-
-  .app__tool--list-icon {
-    display: inline-flex;
-  }
-
   .app__hint--branch {
     display: none;
   }
@@ -393,11 +384,6 @@
   .app__coach {
     bottom: 1rem;
   }
-}
-
-/* Desktop: dölj ikon-varianten av personlista */
-.app__tool--list-icon {
-  display: none;
 }
 
 /* Desktop-only items visas alltid på stor skärm */
